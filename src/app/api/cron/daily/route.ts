@@ -1,0 +1,3 @@
+import { buildSnapshot } from "@/lib/ranking";
+import { curatedModels } from "@/lib/curated-data";
+export function GET(request: Request) { const secret = process.env.CRON_SECRET; if (secret && request.headers.get("authorization") !== `Bearer ${secret}`) return new Response("Unauthorized", { status: 401 }); const date = new Date().toISOString().slice(0, 10); const snapshot = buildSnapshot(curatedModels, date); return Response.json({ status: "validated", snapshot: snapshot.date, inputHash: snapshot.inputHash, boards: Object.keys(snapshot.boards), persistence: "requires configured database adapter" }); }

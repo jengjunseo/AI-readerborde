@@ -1,0 +1,3 @@
+import Link from "next/link";
+import { allBoards, latestSnapshot } from "@/lib/catalog";
+export default function BoardsPage() { const snapshot = latestSnapshot(); return <main className="shell subpage"><header className="topbar"><Link href="/" className="brand">AI <span>LEADERBOARD</span></Link><nav><Link href="/methodology">Methodology</Link></nav></header><p className="eyebrow">MULTI-LENS RANKING</p><h1>Choose the question<br /><em>before the winner.</em></h1><div className="board-index">{allBoards(snapshot).map((board) => <Link href={`/boards/${board.slug}`} key={board.slug}><p>{board.kind === "spec" ? "SPEC SORT" : "SCORING BOARD"}</p><h2>{board.label}</h2><span>{board.description}</span><b>Open board →</b></Link>)}</div></main>; }

@@ -1,0 +1,5 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { BoardTable } from "@/components/board-table";
+import { getBoard, latestSnapshot } from "@/lib/catalog";
+export default async function BoardPage({ params }: { params: Promise<{ slug: string }> }) { const { slug } = await params; const board = getBoard(slug); if (!board) notFound(); const snapshot = latestSnapshot(); return <main className="shell subpage"><header className="topbar"><Link href="/" className="brand">AI <span>LEADERBOARD</span></Link><nav><Link href="/boards">All boards</Link><Link href="/methodology">Methodology</Link></nav></header><p className="eyebrow">{board.kind === "spec" ? "SPECIFICATION SORT" : "EXPLAINABLE RANKING"} · {snapshot.methodVersion.toUpperCase()}</p><h1>{board.label}<br /><em>for a specific question.</em></h1><BoardTable board={board} /><aside className="method-callout"><p className="eyebrow">TRACEABILITY</p><h2>Every number opens to its evidence.</h2><p>Click a model to inspect raw metric values, normalization and the source observed date.</p></aside></main>; }
