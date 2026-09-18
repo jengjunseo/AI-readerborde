@@ -1,21 +1,34 @@
 # AI LEADERBOARD
 
-Source-grounded AI model rankings with a deterministic Phase 0 vertical slice: **Overall**, **Coding**, and **Cheapest**.
+An explainable daily AI-model scoreboard. The first production slice covers **Overall**, **Coding**, and **Cheapest**, with model identity, source attribution, deterministic scoring, snapshots, and rollback-safe publication.
+
+## Architecture
+
+`Source adapter → source_fetches / raw_observations → normalized_metric_values → board_scores → ranking_snapshots / ranking_entries → published_pointers`
+
+- **Identity:** provider → model → model version → external source alias. Unknown OpenRouter IDs go to `unmapped_entities`; a fetch can never create a public model automatically.
+- **Historical reproducibility:** each snapshot holds an input hash and method version. Publishing updates all board pointers inside one transaction.
+- **Failure policy:** source adapters fail independently. A valid curated core can still publish as degraded; a validation or pre-publish failure rolls back the transaction and retains the last pointers.
+- **Rollback:** `POST /api/admin/rollback`, protected by `ADMIN_TOKEN`, repoints one board to a validated historical snapshot.
 
 ## Run locally
 
 ```bash
-npm run dev
+npm install
+npm run lint
 npm test
-npm run pipeline -- 2026-09-18
+npm run build
 ```
 
-The curated records in `src/lib/curated-data.ts` retain source URLs and observation dates. `npm run pipeline` deterministically builds all board rankings and prints a stable input hash.
+The test suite uses PGlite, a real embedded PostgreSQL runtime, applies the checked-in Drizzle migration, persists 50 raw observations through all four data layers, then proves idempotency, atomic failure retention, and rollback.
 
-## Method v1
+## Provision production
 
-- Overall: 40% GPQA Diamond + 40% SWE-bench Verified + 20% AIME
-- Coding: fixed-anchor normalized SWE-bench Verified
-- Cheapest: a specification sort using 75% input and 25% output API price
+1. Create a Neon PostgreSQL database and set `DATABASE_URL`, `CRON_SECRET`, and `ADMIN_TOKEN` in Vercel Production.
+2. Run `DATABASE_URL=... npm run db:migrate` against that database.
+3. Deploy the same commit. Vercel calls `/api/cron/daily` at `00:00 KST` (`0 15 * * *` UTC).
+4. Call the protected daily endpoint once and check `/api/v1/boards/overall`.
 
-The UI includes two versioned snapshots to make ranking deltas inspectable. The cron endpoint validates the pipeline and is protected by `CRON_SECRET` when set. A database persistence adapter is intentionally not claimed as complete until a Neon `DATABASE_URL` is provisioned.
+The daily runner uses curated public benchmark records plus the live OpenRouter catalog. OpenRouter records are useful for discovery and pricing refresh but remain unmapped until explicitly approved; they cannot silently alter visible identity or ranking rows.
+
+See [METHODOLOGY.md](./METHODOLOGY.md) for Method v1 and its limitations.

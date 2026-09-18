@@ -1,5 +1,11 @@
-import { curatedModels } from "../src/lib/curated-data";
-import { buildSnapshot } from "../src/lib/ranking";
+import { createNeonDb } from "../src/db/client";
+import { curatedAdapter } from "../src/ingest/adapters/curated";
+import { openRouterAdapter } from "../src/ingest/adapters/openrouter";
+import { runDailyPipeline } from "../src/ingest/pipeline/runner";
+
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) throw new Error("DATABASE_URL is required for durable pipeline execution");
 const date = process.argv[2] ?? new Date().toISOString().slice(0, 10);
-const snapshot = buildSnapshot(curatedModels, date);
-console.log(JSON.stringify({ status: "validated", date: snapshot.date, methodVersion: snapshot.methodVersion, inputHash: snapshot.inputHash, boards: Object.fromEntries(Object.entries(snapshot.boards).map(([slug, board]) => [slug, board.entries.length])) }, null, 2));
+const result = await runDailyPipeline(createNeonDb(databaseUrl), [curatedAdapter, openRouterAdapter], date);
+console.log(JSON.stringify(result, null, 2));
+if (result.status === "failed") process.exitCode = 1;
