@@ -27,7 +27,7 @@ The test suite uses PGlite, a real embedded PostgreSQL runtime, applies the chec
 ## Provision production
 
 1. Create a Neon PostgreSQL database and set `DATABASE_URL`, `CRON_SECRET`, and `ADMIN_TOKEN` in Vercel Production.
-2. Run `DATABASE_URL=... npm run db:migrate` against that database.
+2. Run `DATABASE_URL=... npm run db:migrate` against that database, or call the protected `POST /api/admin/bootstrap` route once. The bootstrap route applies checked-in migrations inside Vercel and publishes the first daily snapshot.
 3. Deploy the same commit. Vercel calls `/api/cron/daily` at `00:00 KST` (`0 15 * * *` UTC).
 4. Call the protected daily endpoint once and check `/api/v1/boards/overall`.
 
