@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BoardTable } from "@/components/board-table";
-import { getBoard, latestSnapshot } from "@/lib/catalog";
-export default async function BoardPage({ params }: { params: Promise<{ slug: string }> }) { const { slug } = await params; const board = getBoard(slug); if (!board) notFound(); const snapshot = latestSnapshot(); return <main className="shell subpage"><header className="topbar"><Link href="/" className="brand">AI <span>LEADERBOARD</span></Link><nav><Link href="/boards">All boards</Link><Link href="/methodology">Methodology</Link></nav></header><p className="eyebrow">{board.kind === "spec" ? "SPECIFICATION SORT" : "EXPLAINABLE RANKING"} · {snapshot.methodVersion.toUpperCase()}</p><h1>{board.label}<br /><em>for a specific question.</em></h1><BoardTable board={board} /><aside className="method-callout"><p className="eyebrow">TRACEABILITY</p><h2>Every number opens to its evidence.</h2><p>Click a model to inspect raw metric values, normalization and the source observed date.</p></aside></main>; }
+import { DataStatus } from "@/components/data-status";
+import { SiteHeader } from "@/components/site-header";
+import { loadPublicData } from "@/lib/public-data";
+import type { BoardSlug } from "@/lib/types";
+export default async function BoardPage({ params }: { params: Promise<{ slug: string }> }) { const { slug } = await params; const data = await loadPublicData(); const board = data.snapshot.boards[slug as BoardSlug]; if (!board) notFound(); return <main className="shell subpage"><SiteHeader date={data.snapshot.date} /><DataStatus data={data} /><p className="eyebrow page-kicker">{board.kind === "spec" ? "비용 기준 정렬" : "설명 가능한 순위"} · {data.snapshot.methodVersion.toUpperCase()}</p><h1>{board.label}<br /><em>하나의 질문에 답합니다.</em></h1><BoardTable board={board} /><aside className="method-callout"><p className="eyebrow">TRACEABILITY</p><h2>모든 숫자는 근거까지 열립니다.</h2><p>모델을 선택하면 원점수, 정규화 결과, 출처 URL과 관측일을 확인할 수 있습니다.</p><Link href="/methodology">계산 방식 보기 →</Link></aside></main>; }

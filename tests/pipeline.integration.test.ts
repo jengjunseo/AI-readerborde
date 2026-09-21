@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import * as schema from "../src/db/schema";
 import { curatedAdapter } from "../src/ingest/adapters/curated";
 import { rollbackBoard, runDailyPipeline } from "../src/ingest/pipeline/runner";
+import { loadPublicSnapshotFromDb } from "../src/lib/public-data";
 
 async function testDb() {
   const client = new PGlite();
@@ -26,6 +27,10 @@ describe("durable daily pipeline", () => {
     expect(await db.select().from(schema.rankingEntries)).toHaveLength(30);
     const pointers = await db.select().from(schema.publishedPointers);
     expect(pointers).toHaveLength(3);
+    const publicSnapshot = await loadPublicSnapshotFromDb(db);
+    expect(publicSnapshot?.date).toBe("2026-09-17");
+    expect(publicSnapshot?.boards.overall.entries).toHaveLength(10);
+    expect(publicSnapshot?.boards.overall.entries[0]?.components["GPQA Diamond"]?.source.url).toMatch(/^https:\/\//);
     const second = await runDailyPipeline(db, [curatedAdapter], "2026-09-17");
     expect(second.status).toBe("already_published");
     expect(await db.select().from(schema.rankingSnapshots)).toHaveLength(3);

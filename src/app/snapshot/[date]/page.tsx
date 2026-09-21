@@ -1,11 +1,13 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BoardTable } from "@/components/board-table";
 import { allBoards, getSnapshot } from "@/lib/catalog";
+import { SiteHeader } from "@/components/site-header";
+import { localizePublicSnapshot } from "@/lib/public-data";
 
 export default async function SnapshotPage({ params }: { params: Promise<{ date: string }> }) {
   const { date } = await params;
-  const snapshot = getSnapshot(date);
-  if (!snapshot) notFound();
-  return <main className="shell subpage"><header className="topbar"><Link href="/" className="brand">AI <span>LEADERBOARD</span></Link><nav><Link href="/boards">Boards</Link><Link href="/methodology">Methodology</Link></nav></header><p className="eyebrow">HISTORICAL SNAPSHOT · {snapshot.methodVersion.toUpperCase()}</p><h1>{snapshot.date}<br /><em>as it was published.</em></h1><p className="intro-copy">Input hash <code>{snapshot.inputHash}</code> · Rankings retain the scoring method and rank reference from this date.</p><div className="board-stack">{allBoards(snapshot).map((board) => <BoardTable board={board} key={board.slug} />)}</div></main>;
+  const storedSnapshot = getSnapshot(date);
+  if (!storedSnapshot) notFound();
+  const snapshot = localizePublicSnapshot(storedSnapshot);
+  return <main className="shell subpage"><SiteHeader date={snapshot.date} /><p className="eyebrow page-kicker">과거 스냅샷 · {snapshot.methodVersion.toUpperCase()}</p><h1>{snapshot.date}<br /><em>당시 공개된 그대로.</em></h1><p className="intro-copy">입력 해시 <code>{snapshot.inputHash}</code> · 당시 계산법과 순위를 현재 규칙으로 덮어쓰지 않습니다.</p><div className="board-stack">{allBoards(snapshot).map((board) => <BoardTable board={board} key={board.slug} />)}</div></main>;
 }

@@ -1,11 +1,14 @@
 import Link from "next/link";
-import { getBoard, getModel } from "@/lib/catalog";
-import { curatedModels } from "@/lib/curated-data";
+import { DataStatus } from "@/components/data-status";
+import { SiteHeader } from "@/components/site-header";
+import { loadPublicData, modelsFromSnapshot } from "@/lib/public-data";
 import type { Model } from "@/lib/types";
 
 export default async function ComparePage({ searchParams }: { searchParams: Promise<{ m?: string }> }) {
+  const data = await loadPublicData(); const models = modelsFromSnapshot(data.snapshot);
+  const getModel = (slug: string) => models.find((model) => model.slug === slug);
   const requested = ((await searchParams).m?.split(",").slice(0, 3).map(getModel).filter((model): model is Model => Boolean(model))) ?? [];
-  const compared = requested.length >= 2 ? requested : curatedModels.slice(0, 2);
+  const compared = requested.length >= 2 ? requested : models.slice(0, 2);
   const primary = compared[0]!;
-  return <main className="shell subpage"><header className="topbar"><Link href="/" className="brand">AI <span>LEADERBOARD</span></Link><nav><Link href="/models">Models</Link><Link href="/boards">Boards</Link></nav></header><p className="eyebrow">MODEL COMPARISON</p><h1>Choose a lens.<br /><em>Keep the evidence.</em></h1><div className="compare-picker">{curatedModels.slice(0, 6).map((model) => <Link key={model.slug} href={`/compare?m=${primary.slug},${model.slug}`} className={compared.some((selectedModel) => selectedModel.slug === model.slug) ? "selected" : ""}>{model.name}</Link>)}</div><div className="compare-table"><div className="compare-row compare-head"><span>Metric</span>{compared.map((model) => <b key={model.slug}>{model.name}</b>)}</div>{(["overall", "coding", "price"] as const).map((slug) => <div className="compare-row" key={slug}><span>{getBoard(slug)!.label}</span>{compared.map((model) => { const entry = getBoard(slug)!.entries.find((item) => item.model.slug === model.slug)!; return <b key={model.slug}>#{entry.rank} <small>{slug === "price" ? `$${entry.value.toFixed(2)}` : entry.value.toFixed(1)}</small></b>; })}</div>)}</div><p className="intro-copy">Comparison is deterministic and reflects the currently published method v1 snapshot. Open a model for source-level evidence.</p></main>;
+  return <main className="shell subpage"><SiteHeader date={data.snapshot.date} /><DataStatus data={data} /><p className="eyebrow page-kicker">모델 비교</p><h1>같은 기준으로 보고,<br /><em>근거까지 비교합니다.</em></h1><div className="compare-picker">{models.slice(0, 8).map((model) => <Link key={model.slug} href={`/compare?m=${primary.slug},${model.slug}`} className={compared.some((selectedModel) => selectedModel.slug === model.slug) ? "selected" : ""}>{model.name}</Link>)}</div><div className="compare-table"><div className="compare-row compare-head"><span>지표</span>{compared.map((model) => <b key={model.slug}>{model.name}</b>)}</div>{(["overall", "coding", "price"] as const).map((slug) => <div className="compare-row" key={slug}><span>{data.snapshot.boards[slug].label}</span>{compared.map((model) => { const entry = data.snapshot.boards[slug].entries.find((item) => item.model.slug === model.slug); return <b key={model.slug}>{entry ? <>#{entry.rank} <small>{slug === "price" ? `$${entry.value.toFixed(2)}` : entry.value.toFixed(1)}</small></> : "데이터 부족"}</b>; })}</div>)}</div><p className="intro-copy">현재 공개된 {data.snapshot.methodVersion} 스냅샷을 같은 계산식으로 비교합니다. 모델 상세 화면에서 원점수와 출처를 확인할 수 있습니다.</p></main>;
 }

@@ -10,6 +10,8 @@ An explainable daily AI-model scoreboard. The first production slice covers **Ov
 - **Historical reproducibility:** each snapshot holds an input hash and method version. Publishing updates all board pointers inside one transaction.
 - **Failure policy:** source adapters fail independently. A valid curated core can still publish as degraded; a validation or pre-publish failure rolls back the transaction and retains the last pointers.
 - **Rollback:** `POST /api/admin/rollback`, protected by `ADMIN_TOKEN`, repoints one board to a validated historical snapshot.
+- **Public read path:** App Router server pages query `published_pointers` directly on each request. If production storage is unavailable, the UI visibly labels and serves the last checked-in verified snapshot instead of pretending it is live.
+- **Health semantics:** `/api/health` reports `ok` only when both the durable database and cron secret are configured; fallback mode is explicitly `degraded`.
 
 ## Run locally
 
