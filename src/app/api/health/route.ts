@@ -6,10 +6,15 @@ export async function GET() {
   const healthy = data.source === "database" && cronConfigured;
   return Response.json({
     status: healthy ? "ok" : "degraded",
-    dataSource: data.source,
+    database: data.source === "database" ? "connected" : "unavailable",
+    fallbackActive: data.source === "fallback",
     cronConfigured,
-    snapshot: data.snapshot.date,
-    methodVersion: data.snapshot.methodVersion,
+    latestSnapshotAt: data.health.latestSnapshotAt,
+    lastCronSuccessAt: data.health.lastCronSuccessAt,
+    sourceCoverage: data.health.sourceCoverage,
+    publishedModels: data.health.publishedModels,
+    methodVersion: data.health.methodVersion,
+    stale: data.health.stale,
     inputHash: data.snapshot.inputHash,
     notice: data.notice,
   }, { status: healthy ? 200 : 503 });

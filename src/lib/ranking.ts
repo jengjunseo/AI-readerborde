@@ -20,14 +20,17 @@ function rank(entries: RankedEntry[], ascending = false): RankedEntry[] { return
 export function buildSnapshot(models: Model[], date: string, previous?: Snapshot): Snapshot {
   const overall = rank(models.map((model) => scoreEntry(model, "overall")));
   const coding = rank(models.map((model) => scoreEntry(model, "coding")));
-  const price = rank(models.map((model) => ({ model, rank: 0, value: blendedPrice(model), components: { "Blended API price (3:1 input:output)": { raw: blendedPrice(model), normalized: 0, weight: 1, source: model.priceSource } } })), true);
+  const value = rank(models.map((model) => ({ model, rank: 0, value: Math.max(0, 100 - blendedPrice(model) * 5), price: blendedPrice(model), components: { "혼합 API 가격": { raw: blendedPrice(model), normalized: Math.max(0, 100 - blendedPrice(model) * 5), weight: 1, source: model.priceSource } } })));
   const previousRanks = previous ? Object.fromEntries(Object.entries(previous.boards).map(([slug, board]) => [slug, Object.fromEntries(board.entries.map((entry) => [entry.model.slug, entry.rank]))])) : {};
   const attachPrevious = (slug: string, entries: RankedEntry[]) => entries.map((entry) => ({ ...entry, previousRank: previousRanks[slug]?.[entry.model.slug] as number | undefined }));
   const boards: Snapshot["boards"] = {
     overall: { slug: "overall", label: "Overall", description: "Fixed-anchor composite of reasoning, coding, and math evidence.", kind: "score", entries: attachPrevious("overall", overall) },
     coding: { slug: "coding", label: "Coding", description: "SWE-bench Verified, normalized with fixed published anchors.", kind: "score", entries: attachPrevious("coding", coding) },
-    price: { slug: "price", label: "Cheapest", description: "Blended API price per 1M tokens (3:1 input:output). Lower is better.", kind: "spec", entries: attachPrevious("price", price) },
+    agentic: { slug: "agentic", label: "Agentic", description: "No verified fallback data.", kind: "score", entries: [] },
+    value: { slug: "value", label: "Value", description: "Fallback blended API price index.", kind: "score", entries: attachPrevious("value", value) },
+    speed: { slug: "speed", label: "Speed", description: "No verified fallback data.", kind: "score", entries: [] },
+    korean: { slug: "korean", label: "Korean", description: "No verified fallback data.", kind: "score", entries: [] },
   };
   const inputHash = createHash("sha256").update(JSON.stringify(models)).digest("hex").slice(0, 12);
-  return { date, previousDate: previous?.date ?? date, methodVersion: "v1", inputHash, boards };
+  return { date, previousDate: previous?.date ?? date, methodVersion: "v1-fallback", inputHash, boards };
 }

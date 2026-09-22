@@ -16,9 +16,13 @@
     "@electric-sql/pglite": "^0.5.8",
     "@neondatabase/serverless": "^1.1.0",
     "drizzle-orm": "^0.45.2",
+    "geist": "^1.7.2",
+    "lucide-react": "^1.47.0",
     "next": "^15.5.7",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "recharts": "^3.10.1",
+    "simple-icons": "^16.32.0",
     "ws": "^8.21.3",
     "zod": "^4.6.5"
   },

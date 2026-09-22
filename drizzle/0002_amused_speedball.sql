@@ -1,0 +1,1 @@
+ALTER TABLE "models" ADD COLUMN "discovered_at" timestamp with time zone DEFAULT now() NOT NULL;

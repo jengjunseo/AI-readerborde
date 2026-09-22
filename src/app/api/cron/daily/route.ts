@@ -1,5 +1,5 @@
 import { getDb } from "@/db/client";
-import { curatedAdapter } from "@/ingest/adapters/curated";
+import { artificialAnalysisAdapter } from "@/ingest/adapters/artificial-analysis";
 import { openRouterAdapter } from "@/ingest/adapters/openrouter";
 import { runDailyPipeline } from "@/ingest/pipeline/runner";
 
@@ -11,6 +11,6 @@ export async function GET(request: Request) {
   const db = getDb();
   if (!db) return Response.json({ status: "configuration_error", detail: "DATABASE_URL is required" }, { status: 503 });
   const date = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" });
-  const result = await runDailyPipeline(db, [curatedAdapter, openRouterAdapter], date);
+  const result = await runDailyPipeline(db, [artificialAnalysisAdapter, openRouterAdapter], date);
   return Response.json(result, { status: result.status === "failed" ? 500 : 200 });
 }

@@ -1,7 +1,7 @@
 import path from "node:path";
 import { migrate } from "drizzle-orm/neon-serverless/migrator";
 import { getDb } from "@/db/client";
-import { curatedAdapter } from "@/ingest/adapters/curated";
+import { artificialAnalysisAdapter } from "@/ingest/adapters/artificial-analysis";
 import { openRouterAdapter } from "@/ingest/adapters/openrouter";
 import { runDailyPipeline } from "@/ingest/pipeline/runner";
 
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
   try {
     await migrate(db, { migrationsFolder: path.join(process.cwd(), "drizzle") });
     const date = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" });
-    const result = await runDailyPipeline(db, [curatedAdapter, openRouterAdapter], date);
+    const result = await runDailyPipeline(db, [artificialAnalysisAdapter, openRouterAdapter], date);
     return Response.json({ migrated: true, ...result }, { status: result.status === "failed" ? 500 : 200 });
   } catch (error) {
     return Response.json({

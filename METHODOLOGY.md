@@ -1,30 +1,40 @@
-# AI LEADERBOARD Methodology — v1
+# AI SCOREBOARD Methodology — v2.0
 
 ## Evidence layers
 
-Each public score is reproducible through four durable layers:
+Every published score is reproducible through four durable layers:
 
-1. **Raw:** the observed value, source URL, observation date, source-fetch fingerprint, and model version.
-2. **Normalized:** fixed-anchor 0–100 transformation for each benchmark.
-3. **Derived:** a board score and JSON breakdown that points back to its raw leaves.
-4. **Ranking:** a dated snapshot and rank entries, with prior-rank reference.
+1. **Raw:** source URL and source kind, benchmark name/version, external model ID, raw value/unit, observation and fetch times, adapter version, payload hash, and terms note.
+2. **Normalized:** versioned fixed-anchor transformations. Missing values remain missing.
+3. **Derived:** board scores, coverage, and JSON leaves that point to the exact raw observations.
+4. **Ranking:** dated immutable snapshots with prior rank, new-entry flag, and movement reason.
 
-`published_pointers` is the only read path for “today.” It moves only after all board snapshots are staged and validated in a transaction.
+`published_pointers` is the only current read path. All boards are staged and validated before the pointers move in one transaction. If any required board fails validation, the transaction rolls back and the last healthy snapshot remains public.
 
-## Boards
+## Model identity and publication
 
-| Board | Formula | Eligibility |
-| --- | --- | --- |
-| Overall | 40% GPQA Diamond + 40% SWE-bench Verified + 20% AIME | ≥60% weighted benchmark coverage |
-| Coding | normalized SWE-bench Verified | benchmark present |
-| Cheapest | 75% input + 25% output price per 1M tokens | official/curated price present |
+Identity is `provider → model → model_version → source alias`. A source-specific model name is never treated as the canonical identity by itself. The lifecycle is `discovered → candidate → verified → published → archived`. Trusted evaluation adapters may create candidates; unknown catalog IDs enter `unmapped_entities`. A model is publishable only when at least two capability axes are present or an administrator explicitly approves it.
 
-Anchors are GPQA 30–90, SWE-bench 20–85, and AIME 30–100. `normalized = clamp((raw - floor) / (ceiling - floor) × 100)`. Anchors are fixed for method v1 so a newly collected model cannot silently change the historical interpretation of an existing score.
+## Overall score
 
-## What this does not claim
+| Axis | Weight | Current evidence |
+| --- | ---: | --- |
+| Reasoning | 25% | GPQA Diamond, Humanity's Last Exam |
+| Coding / agentic coding | 25% | Terminal-Bench 4.0, SciCode, SWE-bench when available |
+| Work / tool use | 15% | GDPval-AA, AA-Briefcase / Analyst Agent, APEX Agents, ITBench SRE |
+| Long context / multimodal | 10% | AA-LCR, MMMU-Pro |
+| Korean | 10% | published only when a traceable evaluation exists |
+| Value | 10% | observed Cost per Intelligence Index task |
+| Output speed | 5% | median output tokens per second |
 
-Price is a transparent API-price sort, not a Cost Per Successful Task estimate. Benchmark scores are not treated as a real-world task success probability. A later CPST board needs task-profile calibration evidence before it can make that claim.
+If an axis is missing, it is not replaced with zero or an imputed average. Available weights are renormalized and the original covered weight is shown as coverage. Overall eligibility requires at least two capability axes and 50% total weighted coverage.
 
-## Source policy
+The Value board is an **Estimated Cost Index**, not CPST. An observed benchmark cost is not assumed to equal real-world success probability.
 
-Provider pricing pages are T1. Public benchmark leaderboards are T3. Every public number carries a source URL and observed date. The current seed data is visibly dated curated evidence; it is not presented as real-time telemetry. Live OpenRouter results are T2 discovery input and require alias approval before becoming a public model identity.
+## Sources and cadence
+
+- Artificial Analysis public model leaderboard: evaluations, task cost, speed, and latency; daily observation.
+- OpenRouter model catalog API: discovery, context window, aliases, and published route pricing; daily observation.
+- Snapshot publication: daily at 00:00 KST through Vercel Cron (`0 15 * * *` UTC).
+
+Each adapter persists a fingerprint. Unknown IDs do not become public models automatically. A missing Korean board is displayed as “평가 대기” rather than populated with fabricated or stale values.
