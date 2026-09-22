@@ -66,6 +66,18 @@ function leaf(observation: RawObservation, normalized: number, weight: number) {
 
 export type PipelineResult = { runId: string; status: "published" | "already_published" | "failed"; errors: string[]; snapshotIds: Record<string, string> };
 
+async function retireObsoletePointers(db: Db) {
+  const pointers = await db.select().from(schema.publishedPointers);
+  const obsolete = pointers.filter((pointer) => !boardDefinitions.includes(pointer.boardSlug as BoardSlug));
+  if (!obsolete.length) return;
+  await db.transaction(async (tx: Db) => {
+    for (const pointer of obsolete) {
+      await tx.update(schema.rankingSnapshots).set({ status: "superseded" }).where(eq(schema.rankingSnapshots.id, pointer.snapshotId));
+      await tx.delete(schema.publishedPointers).where(eq(schema.publishedPointers.boardSlug, pointer.boardSlug));
+    }
+  });
+}
+
 export async function runDailyPipeline(db: Db, adapters: SourceAdapter[], date: string, options: { failAt?: FailurePoint } = {}): Promise<PipelineResult> {
   const versionedRunDate = `${date}@${methodVersion}`;
   const runCandidates = await db.select().from(schema.pipelineRuns).where(inArray(schema.pipelineRuns.runDate, [date, versionedRunDate]));
@@ -73,7 +85,10 @@ export async function runDailyPipeline(db: Db, adapters: SourceAdapter[], date: 
   if (existing && (existing.status === "published" || existing.status === "degraded")) {
     const snapshots = await db.select().from(schema.rankingSnapshots).where(eq(schema.rankingSnapshots.pipelineRunId, existing.id));
     const isCurrentCompleteSet = boardDefinitions.every((board) => snapshots.some((snapshot) => snapshot.boardSlug === board && snapshot.status === "published" && snapshot.methodVersion === methodVersion));
-    if (isCurrentCompleteSet) return { runId: existing.id, status: "already_published", errors: existing.errors as string[], snapshotIds: Object.fromEntries(snapshots.map((snapshot) => [snapshot.boardSlug, snapshot.id])) };
+    if (isCurrentCompleteSet) {
+      await retireObsoletePointers(db);
+      return { runId: existing.id, status: "already_published", errors: existing.errors as string[], snapshotIds: Object.fromEntries(snapshots.map((snapshot) => [snapshot.boardSlug, snapshot.id])) };
+    }
     // Preserve an already-published legacy run and its rollback-safe snapshots.
     // A method upgrade for the same calendar date gets a versioned idempotency key.
     existing = undefined;
@@ -201,6 +216,10 @@ export async function runDailyPipeline(db: Db, adapters: SourceAdapter[], date: 
         if (prior) await tx.update(schema.rankingSnapshots).set({ status: "superseded" }).where(eq(schema.rankingSnapshots.id, prior.snapshotId));
         await tx.insert(schema.publishedPointers).values({ boardSlug: board, snapshotId: snapshotIds[board] }).onConflictDoUpdate({ target: schema.publishedPointers.boardSlug, set: { snapshotId: snapshotIds[board], updatedAt: new Date() } });
         await tx.update(schema.rankingSnapshots).set({ status: "published" }).where(eq(schema.rankingSnapshots.id, snapshotIds[board]));
+      }
+      for (const pointer of previousPointers.filter((item) => !boardDefinitions.includes(item.boardSlug as BoardSlug))) {
+        await tx.update(schema.rankingSnapshots).set({ status: "superseded" }).where(eq(schema.rankingSnapshots.id, pointer.snapshotId));
+        await tx.delete(schema.publishedPointers).where(eq(schema.publishedPointers.boardSlug, pointer.boardSlug));
       }
     });
     await db.update(schema.pipelineRuns).set({ status: errors.length ? "degraded" : "published", completedAt: new Date() }).where(eq(schema.pipelineRuns.id, runId));

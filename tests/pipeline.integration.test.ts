@@ -90,4 +90,18 @@ describe("durable daily pipeline", () => {
     expect(await db.select().from(schema.rankingSnapshots)).toHaveLength(7);
     await client.close();
   });
+
+  it("retires an obsolete legacy board pointer during an idempotent rerun", async () => {
+    const { client, db } = await testDb();
+    const first = await runDailyPipeline(db, [fixtureAdapter], "2026-09-17");
+    const legacySnapshotId = "00000000-0000-4000-8000-000000000003";
+    await db.insert(schema.rankingSnapshots).values({ id: legacySnapshotId, pipelineRunId: first.runId, boardSlug: "cheapest", snapshotDate: "2026-09-17", methodVersion: "v1", inputHash: "legacy", status: "published" });
+    await db.insert(schema.publishedPointers).values({ boardSlug: "cheapest", snapshotId: legacySnapshotId });
+
+    expect((await runDailyPipeline(db, [fixtureAdapter], "2026-09-17")).status).toBe("already_published");
+    expect(await db.select().from(schema.publishedPointers)).toHaveLength(6);
+    const legacy = (await db.select().from(schema.rankingSnapshots)).find((snapshot) => snapshot.id === legacySnapshotId);
+    expect(legacy?.status).toBe("superseded");
+    await client.close();
+  });
 });
