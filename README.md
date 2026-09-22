@@ -28,8 +28,8 @@ The test suite uses PGlite, a real embedded PostgreSQL runtime, applies the chec
 ## Provision production
 
 1. Create a Neon PostgreSQL database and set `DATABASE_URL`, `CRON_SECRET`, and `ADMIN_TOKEN` in Vercel Production.
-2. Run `DATABASE_URL=... npm run db:migrate` against that database, or call the protected `POST /api/admin/bootstrap` route once. The bootstrap route applies checked-in migrations inside Vercel and publishes the first daily snapshot.
-3. Deploy the same commit. Vercel calls `/api/cron/daily` at `00:00 KST` (`0 15 * * *` UTC).
+2. Deploy the same commit. The production-only `vercel-build` hook first proves the application build, then applies checked-in migrations and idempotently publishes the current KST snapshot before the deployment can be promoted. Preview builds never mutate production data.
+3. Vercel calls `/api/cron/daily` at `00:00 KST` (`0 15 * * *` UTC). `POST /api/admin/bootstrap` remains available for an authenticated manual recovery.
 4. Call the protected daily endpoint once and check `/api/v1/boards/overall`.
 
 The daily runner uses live Artificial Analysis observations plus the live OpenRouter catalog. OpenRouter-only records remain in the unmapped queue until explicitly approved; they cannot silently create a public model or alter ranking rows. The Korean board intentionally remains unranked until a sufficiently complete, independently traceable Korean evaluation source is connected.
