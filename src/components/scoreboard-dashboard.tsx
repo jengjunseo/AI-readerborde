@@ -13,7 +13,6 @@ const ScoreScatterChart = dynamic(() => import("./score-scatter-chart"), { ssr: 
 const compactName = (name: string) => name.replace(/\s*\(Adaptive Reasoning,?\s*/i, " (").replace(/,? Default Fallback/i, "");
 const deltaFor = (entry: RankedEntry) => entry.previousRank === undefined ? undefined : entry.previousRank - entry.rank;
 const scoreFormat = (value: number) => value.toFixed(1);
-const dateTime = (value?: string) => value ? new Intl.DateTimeFormat("ko-KR", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Seoul" }).format(new Date(value)) : "확인 대기";
 
 function Delta({ entry }: { entry: RankedEntry }) {
   const delta = deltaFor(entry);
@@ -60,22 +59,11 @@ export function ScoreboardDashboard({ data }: { data: PublicData }) {
   const [selected, setSelected] = useState<string[]>([]);
   const board = data.snapshot.boards[active];
   const overall = data.snapshot.boards.overall.entries;
-  const leader = overall[0];
-  const riser = [...overall].sort((a, b) => (deltaFor(b) ?? 0) - (deltaFor(a) ?? 0))[0];
-  const valueLeader = data.snapshot.boards.value.entries[0];
-  const newCount = overall.filter((entry) => entry.isNew).length;
   const chartData = useMemo(() => overall.filter((entry) => entry.price !== undefined).map((entry) => ({ name: compactName(entry.model.name), score: entry.value, price: entry.price })), [overall]);
   const toggle = (slug: string) => setSelected((current) => current.includes(slug) ? current.filter((item) => item !== slug) : current.length < 2 ? [...current, slug] : [current[1], slug]);
   return <>
-    <section className="summary-strip" aria-label="오늘의 핵심 변화">
-      <div><span>종합 1위</span><b>{leader?.model.name ?? "평가 대기"}</b><strong>{leader ? scoreFormat(leader.value) : "—"}</strong></div>
-      <div><span>최대 상승</span><b>{riser && (deltaFor(riser) ?? 0) > 0 ? riser.model.name : "변동 없음"}</b><strong>{riser && (deltaFor(riser) ?? 0) > 0 ? `+${deltaFor(riser)}` : "—"}</strong></div>
-      <div><span>가성비 1위</span><b>{valueLeader?.model.name ?? "평가 대기"}</b><strong>{valueLeader ? scoreFormat(valueLeader.value) : "—"}</strong></div>
-      <div><span>신규 진입</span><b>{newCount ? `${newCount}개 모델` : "없음"}</b><strong>{newCount}</strong></div>
-    </section>
     <div className="board-toolbar">
       <div className="board-tabs" role="tablist" aria-label="리더보드 선택">{boardOrder.map((slug) => <button key={slug} role="tab" aria-selected={active === slug} onClick={() => setActive(slug)}>{boardMeta[slug].label}</button>)}</div>
-      <p><span className={`status-dot ${data.health.stale ? "stale" : ""}`} aria-hidden="true" /> 스냅샷 {data.snapshot.date} · {dateTime(data.health.lastCronSuccessAt)} · 커버리지 {Math.round(data.health.sourceCoverage * 100)}%</p>
     </div>
     <section className="main-board" aria-labelledby="board-title"><div className="board-context"><div><p>AI 모델 스코어보드 · {data.snapshot.methodVersion}</p><h1 id="board-title">{board.label} 순위</h1></div><span>{board.description}</span></div><RankTable entries={board.entries} selected={selected} onSelect={toggle} /></section>
     <section className="analysis-grid" aria-label="추가 분석">
