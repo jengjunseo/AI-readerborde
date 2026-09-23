@@ -9,6 +9,7 @@ import type { PublicData } from "@/lib/public-data";
 import type { BoardSlug, RankedEntry } from "@/lib/types";
 import { ProviderIcon } from "./provider-icon";
 const ScoreScatterChart = dynamic(() => import("./score-scatter-chart"), { ssr: false, loading: () => <div className="chart-skeleton" aria-label="차트 로딩 중" /> });
+const LatestModelChart = dynamic(() => import("./latest-model-chart"), { ssr: false, loading: () => <div className="latest-model-panel chart-skeleton" aria-label="최신 모델 차트 로딩 중" /> });
 
 const compactName = (name: string) => name.replace(/\s*\(Adaptive Reasoning,?\s*/i, " (").replace(/,? Default Fallback/i, "");
 const deltaFor = (entry: RankedEntry) => entry.previousRank === undefined ? undefined : entry.previousRank - entry.rank;
@@ -31,16 +32,16 @@ function RankTable({ entries, selected, onSelect }: { entries: RankedEntry[]; se
   if (!entries.length) return <div className="empty-state"><b>평가 대기</b><p>검증 가능한 한국어 평가가 두 축 이상 확보되기 전에는 순위를 만들지 않습니다. 결측값을 0점으로 채우지 않습니다.</p></div>;
   return <div className="score-table" role="table" aria-label="AI 모델 순위">
     <div className="score-row score-head" role="row"><span>비교</span><span>순위</span><span>모델</span><span>점수</span><span>변동</span><span>근거</span><span>작업비용</span><span>속도</span><span>신뢰도</span><span /></div>
-    {entries.slice(0, 16).map((entry) => {
+    {entries.map((entry) => {
       const isOpen = expanded === entry.model.slug; const checked = selected.includes(entry.model.slug);
       return <div className={`score-row-wrap ${isOpen ? "open" : ""}`} key={entry.model.slug}>
         <div className={`score-row ${entry.rank === 1 ? "first" : ""}`} role="row">
           <button className={`compare-check ${checked ? "checked" : ""}`} onClick={() => onSelect(entry.model.slug)} aria-label={`${entry.model.name} 비교 ${checked ? "해제" : "선택"}`} aria-pressed={checked}>{checked && <Check size={13} />}</button>
           <strong className="rank-number">{entry.rank}</strong>
-          <button className="model-cell" onClick={() => setExpanded(isOpen ? undefined : entry.model.slug)} aria-expanded={isOpen} aria-controls={`evidence-${entry.model.slug}`}>
+          <Link className="model-cell" href={`/models/${entry.model.slug}`} aria-label={`${entry.model.name} 초보자 가이드 열기`}>
             <ProviderIcon provider={entry.model.provider} /><span><b>{compactName(entry.model.name)}</b><small>{entry.model.provider} · {(entry.model.context / 1000).toLocaleString()}k context</small></span>
-          </button>
-          <button className="score-value" title="클릭하면 원점수 → 정규화 → 출처를 확인합니다." onClick={() => setExpanded(isOpen ? undefined : entry.model.slug)}>{scoreFormat(entry.value)}</button>
+          </Link>
+          <Link className="score-value" href={`/models/${entry.model.slug}#benchmarks`} title="모델 상세에서 점수와 평가 근거를 확인합니다.">{scoreFormat(entry.value)}</Link>
           <Delta entry={entry} />
           <span className="evidence-count">{Object.keys(entry.components).length}개</span>
           <span className="money">{entry.price === undefined ? "—" : `$${entry.price.toFixed(2)}`}</span>
@@ -66,6 +67,7 @@ export function ScoreboardDashboard({ data }: { data: PublicData }) {
       <div className="board-tabs" role="tablist" aria-label="리더보드 선택">{boardOrder.map((slug) => <button key={slug} role="tab" aria-selected={active === slug} onClick={() => setActive(slug)}>{boardMeta[slug].label}</button>)}</div>
     </div>
     <section className="main-board" aria-labelledby="board-title"><div className="board-context"><div><p>AI 모델 스코어보드 · {data.snapshot.methodVersion}</p><h1 id="board-title">{board.label} 순위</h1></div><span>{board.description}</span></div><RankTable entries={board.entries} selected={selected} onSelect={toggle} /></section>
+    <LatestModelChart />
     <section className="analysis-grid" aria-label="추가 분석">
       <article className="analysis-panel movement-panel"><header><span>24시간 변동</span><b>순위 변화</b></header>{overall.slice(0, 5).map((entry) => <div key={entry.model.slug}><span>{entry.model.name}</span><Delta entry={entry} /></div>)}</article>
       <article className="analysis-panel chart-panel"><header><span>점수 vs 작업 비용</span><b>효율 분포</b></header><div className="scatter-wrap"><ScoreScatterChart data={chartData} /></div></article>

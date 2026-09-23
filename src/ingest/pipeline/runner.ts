@@ -9,7 +9,7 @@ import type { ExternalRecord, SourceAdapter } from "../adapters/types";
 type Db = NeonDatabase<typeof schema>;
 type RawObservation = typeof schema.rawObservations.$inferSelect;
 type FailurePoint = "before-publish";
-const methodVersion = "v2.0";
+const methodVersion = "v2.1";
 export const boardDefinitions: BoardSlug[] = ["overall", "coding", "agentic", "value", "speed", "korean"];
 
 const metricAnchors: Record<string, readonly [number, number]> = {

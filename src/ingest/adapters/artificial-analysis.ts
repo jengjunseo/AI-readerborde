@@ -59,12 +59,12 @@ function parseModels(html: string): AAModel[] {
 }
 
 function familySlug(slug: string) {
-  return slug.replace(/-(xhigh|high|medium|low)(?:-.*)?$/, "");
+  return slug.replace(/-(max|xhigh|high|medium|low)(?:-.*)?$/, "");
 }
 
-function selectCurrent(models: AAModel[]) {
+export function selectCurrent(models: AAModel[]) {
   const seen = new Set<string>();
-  return models
+  const eligible = models
     .filter((model) => !model.deprecated && model.intelligenceIndex != null)
     .sort((left, right) => Number(right.intelligenceIndex) - Number(left.intelligenceIndex))
     .filter((model) => {
@@ -72,8 +72,13 @@ function selectCurrent(models: AAModel[]) {
       if (seen.has(family)) return false;
       seen.add(family);
       return true;
-    })
-    .slice(0, 16);
+    });
+  const selected = eligible.slice(0, 16);
+  for (const slug of ["gpt-6-sol", "gpt-6-luna"]) {
+    const required = eligible.find((model) => familySlug(model.slug) === slug);
+    if (required && !selected.some((model) => model.slug === required.slug)) selected.push(required);
+  }
+  return selected;
 }
 
 export const artificialAnalysisAdapter: SourceAdapter = {

@@ -5,6 +5,7 @@ import { createNeonDb } from "../src/db/client";
 import { artificialAnalysisAdapter } from "../src/ingest/adapters/artificial-analysis";
 import { openRouterAdapter } from "../src/ingest/adapters/openrouter";
 import { runDailyPipeline } from "../src/ingest/pipeline/runner";
+import { syncPublishedModelGuides } from "../src/lib/model-guide-store";
 
 async function main() {
   const nextBin = path.join(process.cwd(), "node_modules", "next", "dist", "bin", "next");
@@ -18,7 +19,8 @@ async function main() {
     await migrate(db, { migrationsFolder: path.join(process.cwd(), "drizzle") });
     const date = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" });
     const result = await runDailyPipeline(db, [artificialAnalysisAdapter, openRouterAdapter], date);
-    console.log(JSON.stringify({ productionPipeline: result.status, runId: result.runId, errors: result.errors }));
+    const guidesSynced = result.status === "failed" ? 0 : await syncPublishedModelGuides(db);
+    console.log(JSON.stringify({ productionPipeline: result.status, runId: result.runId, guidesSynced, errors: result.errors }));
     if (result.status === "failed") process.exit(1);
   }
 }

@@ -4,6 +4,7 @@ const createdAt = () => timestamp("created_at", { withTimezone: true }).defaultN
 export const runStatus = pgEnum("run_status", ["running", "degraded", "failed", "published"]);
 export const snapshotStatus = pgEnum("snapshot_status", ["staged", "validated", "published", "superseded"]);
 export const modelLifecycle = pgEnum("model_lifecycle", ["discovered", "candidate", "verified", "published", "archived"]);
+export const guideStatus = pgEnum("guide_status", ["pending", "verified", "published"]);
 
 export const providers = pgTable("providers", { id: uuid("id").defaultRandom().primaryKey(), slug: text("slug").notNull().unique(), name: text("name").notNull(), createdAt: createdAt() });
 export const models = pgTable("models", { id: uuid("id").defaultRandom().primaryKey(), providerId: uuid("provider_id").notNull().references(() => providers.id), slug: text("slug").notNull().unique(), name: text("name").notNull(), lifecycle: modelLifecycle("lifecycle").default("discovered").notNull(), adminApproved: boolean("admin_approved").default(false).notNull(), releaseDate: text("release_date"), discoveredAt: timestamp("discovered_at", { withTimezone: true }).defaultNow().notNull(), verifiedAt: timestamp("verified_at", { withTimezone: true }), archivedAt: timestamp("archived_at", { withTimezone: true }), createdAt: createdAt() });
@@ -19,3 +20,26 @@ export const rankingSnapshots = pgTable("ranking_snapshots", { id: uuid("id").de
 export const rankingEntries = pgTable("ranking_entries", { id: uuid("id").defaultRandom().primaryKey(), snapshotId: uuid("snapshot_id").notNull().references(() => rankingSnapshots.id), modelVersionId: uuid("model_version_id").notNull().references(() => modelVersions.id), rank: numeric("rank").notNull(), value: numeric("value").notNull(), previousRank: numeric("previous_rank"), isNew: boolean("is_new").default(false).notNull(), movementReason: text("movement_reason"), createdAt: createdAt() }, (table) => [uniqueIndex("ranking_entries_snapshot_version").on(table.snapshotId, table.modelVersionId)]);
 export const publishedPointers = pgTable("published_pointers", { boardSlug: text("board_slug").primaryKey(), snapshotId: uuid("snapshot_id").notNull().references(() => rankingSnapshots.id), updatedAt: createdAt() });
 export const unmappedEntities = pgTable("unmapped_entities", { id: uuid("id").defaultRandom().primaryKey(), sourceKey: text("source_key").notNull(), externalId: text("external_id").notNull(), payload: jsonb("payload").notNull(), firstSeenRunId: uuid("first_seen_run_id").notNull().references(() => pipelineRuns.id), createdAt: createdAt() }, (table) => [uniqueIndex("unmapped_entities_source_external").on(table.sourceKey, table.externalId)]);
+export const modelGuideFamilies = pgTable("model_guide_families", {
+  familyKey: text("family_key").primaryKey(),
+  officialName: text("official_name").notNull(),
+  providerName: text("provider_name").notNull(),
+  content: jsonb("content").notNull(),
+  sources: jsonb("sources").notNull(),
+  status: guideStatus("status").default("pending").notNull(),
+  lastVerifiedAt: text("last_verified_at"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  createdAt: createdAt(),
+});
+export const modelVersionGuides = pgTable("model_version_guides", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  modelVersionId: uuid("model_version_id").notNull().references(() => modelVersions.id),
+  familyKey: text("family_key").notNull().references(() => modelGuideFamilies.familyKey),
+  content: jsonb("content").notNull(),
+  sources: jsonb("sources").notNull(),
+  status: guideStatus("status").default("pending").notNull(),
+  lastVerifiedAt: text("last_verified_at"),
+  publishedAt: timestamp("published_at", { withTimezone: true }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  createdAt: createdAt(),
+}, (table) => [uniqueIndex("model_version_guides_version").on(table.modelVersionId)]);

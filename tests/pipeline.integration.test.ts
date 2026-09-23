@@ -84,7 +84,7 @@ describe("durable daily pipeline", () => {
     expect(upgraded.status).toBe("published");
     expect(upgraded.runId).not.toBe(legacyRunId);
     const runs = await db.select().from(schema.pipelineRuns);
-    expect(runs.map((run) => run.runDate)).toContain("2026-09-17@v2.0");
+    expect(runs.map((run) => run.runDate)).toContain("2026-09-17@v2.1");
     const legacy = (await db.select().from(schema.rankingSnapshots)).find((snapshot) => snapshot.id === legacySnapshotId);
     expect(legacy?.status).toBe("superseded");
     expect(await db.select().from(schema.rankingSnapshots)).toHaveLength(7);
