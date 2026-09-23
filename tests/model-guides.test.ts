@@ -10,7 +10,7 @@ import { publishedGuideSlugs, resolveModelGuide } from "../src/lib/model-guides"
 
 const productionSlugs = [
   "muse-spark-1-3", "gpt-6-astra", "claude-opus-5-5", "gpt-5-6-sol", "glm-5-3", "glm-5-3-flash", "gpt-5-6-terra", "mimo-v2-6-pro",
-  "claude-fable-5-1", "claude-opus-5", "grok-4-6", "gpt-6-sol", "gpt-6-luna", "kimi-k3", "step-5", "qwen3-8-max", "grok-4-7",
+  "claude-fable-5-1", "claude-opus-5", "grok-4-6", "gpt-6-sol", "gpt-6-luna", "kimi-k3", "step-5", "gemini-3-8-flash", "qwen3-8-2-4t-a95b", "qwen3-8-max", "grok-4-7",
 ];
 
 const model = (slug: string) => ({ slug, name: slug, provider: "Test Provider", version: slug });
@@ -37,7 +37,7 @@ describe("beginner model encyclopedia", () => {
   });
 
   it("shows open-weight requirements only for models with official downloads", () => {
-    const expected = ["glm-5-3", "glm-5-3-flash", "mimo-v2-6-pro", "kimi-k3"];
+    const expected = ["glm-5-3", "glm-5-3-flash", "mimo-v2-6-pro", "kimi-k3", "qwen3-8-2-4t-a95b"];
     const actual = productionSlugs.filter((slug) => resolveModelGuide(model(slug)).openWeights);
     expect(actual.sort()).toEqual(expected.sort());
     for (const slug of actual) {

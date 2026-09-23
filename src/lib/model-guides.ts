@@ -134,6 +134,45 @@ const families: Record<string, ModelFamilyGuide> = {
     glossaryTerms: ["API", "토큰", "컨텍스트 윈도", "멀티모달", "에이전트", "오픈 웨이트"],
     sources: [source("step-model", "Step 5 Preview 공식 페이지", "https://www.stepfun.com/step-5-preview", "release"), source("step-platform", "StepFun 개발자 플랫폼", "https://platform.stepfun.com/", "access")],
   },
+  gemini: {
+    key: "gemini", officialName: "Gemini 3.8 Flash", provider: "Google",
+    introduction: "Gemini 3.8 Flash는 Google이 긴 작업 흐름과 코딩, 도구 사용을 위해 제공하는 멀티모달* 인공지능 모델입니다. Gemini 앱처럼 바로 쓰는 제품과 Gemini API*처럼 개발자가 연결하는 서비스는 이용 조건과 가격이 서로 다릅니다.",
+    useCases: [
+      { title: "긴 문서와 자료 분석", description: "최대 100만 토큰 컨텍스트 윈도*에서 긴 문서, 코드와 여러 형식의 입력을 함께 다룰 수 있습니다.", sourceIds: ["gemini-docs"] },
+      { title: "코딩과 여러 단계 작업", description: "공식 발표는 장기 코딩, 자율 에이전트*와 복잡한 워크플로를 주요 용도로 안내합니다.", sourceIds: ["gemini-release"] },
+    ],
+    strengths: [{ title: "속도와 추론 수준 조절", description: "low·medium·high 추론 수준을 지원해 작업 난이도에 맞춰 응답 속도와 계산량을 조절할 수 있습니다.", sourceIds: ["gemini-docs"] }],
+    cautions: [
+      { title: "소개 가격은 기간 한정", description: "공식 발표의 할인 API 가격은 2026년 12월 31일까지이며, 2027년부터 표준 가격이 적용될 예정입니다.", sourceIds: ["gemini-release"] },
+      { title: "앱과 API는 별도", description: "Gemini 앱 요금제와 Gemini API 종량제는 별도 서비스이므로 자신의 이용 경로에 맞는 조건을 확인해야 합니다.", sourceIds: ["gemini-release"] },
+    ],
+    glossaryTerms: ["API", "토큰", "컨텍스트 윈도", "멀티모달", "추론", "에이전트", "환각"],
+    sources: [
+      source("gemini-release", "Google Gemini 3.8 Flash 발표", "https://blog.google/innovation-and-ai/models-and-research/gemini-models/3-8-flash-and-3-8-flash-cyber/", "release"),
+      source("gemini-docs", "Gemini API 최신 모델 문서", "https://ai.google.dev/gemini-api/docs/latest-model", "documentation"),
+    ],
+  },
+  "qwen-open": {
+    key: "qwen-open", officialName: "Qwen3.8 2.4T A95B", provider: "Alibaba",
+    introduction: "Qwen3.8 2.4T A95B는 Alibaba가 공개한 대규모 텍스트 인공지능 모델입니다. 전체 2.4조 파라미터* 중 요청을 처리할 때 약 950억 개를 사용하는 혼합 전문가 구조이며, 공식 API*를 쓰거나 공개 가중치를 직접 배포할 수 있습니다.",
+    useCases: [
+      { title: "텍스트와 코드 작업", description: "긴 문서 처리, 코드 작성, 함수 호출과 구조화된 텍스트 출력을 지원합니다.", sourceIds: ["qwen-open-docs"] },
+      { title: "자체 서버 배포", description: "공식 가중치를 내려받아 vLLM, SGLang 또는 TokenSpeed로 여러 GPU 서버에 배포할 수 있습니다.", sourceIds: ["qwen-open-weights"] },
+    ],
+    strengths: [{ title: "공식 오픈 웨이트*", description: "가중치와 실행 자료가 공개되어 라이선스 조건에 따라 자체 서버에서 운영할 수 있습니다.", sourceIds: ["qwen-open-weights", "qwen-open-license"] }],
+    cautions: [
+      { title: "이미지 입력은 지원하지 않음", description: "공식 모델 카드 기준 이 버전은 텍스트 입력·출력 모델입니다. 호스팅 Qwen3.8 Max의 멀티모달 기능과 혼동하면 안 됩니다.", sourceIds: ["qwen-open-weights"] },
+      { title: "대규모 서버가 필요", description: "공식 BF16 저장소가 약 4.89TB이므로 개인 PC에서 전체 모델을 실행하기 어렵습니다. 파일 크기는 실제 최소 VRAM과 같지 않습니다.", sourceIds: ["qwen-open-weights"] },
+    ],
+    glossaryTerms: ["오픈 웨이트", "오픈 소스", "API", "파라미터", "양자화", "GPU 및 VRAM", "컨텍스트 윈도", "추론"],
+    sources: [
+      source("qwen-open-docs", "Alibaba Cloud Qwen3.8 2.4T A95B 문서", "https://www.alibabacloud.com/help/en/model-studio/qwen3-8-2-4t-a95b", "documentation"),
+      source("qwen-open-release", "Alibaba Cloud 신규 모델 목록", "https://www.alibabacloud.com/help/en/model-studio/newly-released-models", "release"),
+      source("qwen-open-weights", "Qwen3.8 2.4T A95B 공식 가중치", "https://huggingface.co/Qwen/Qwen3.8-2.4T-A95B", "runtime"),
+      source("qwen-open-license", "Qwen3.8 Max License", "https://huggingface.co/Qwen/Qwen3.8-2.4T-A95B/blob/main/LICENSE", "license"),
+      source("qwen-open-fp8", "Qwen3.8 2.4T A95B 공식 FP8 가중치", "https://huggingface.co/Qwen/Qwen3.8-2.4T-A95B-FP8", "runtime"),
+    ],
+  },
   qwen: {
     key: "qwen", officialName: "Qwen3.8 Max", provider: "Alibaba",
     introduction: "Qwen3.8 Max는 Alibaba Cloud Model Studio에서 제공하는 호스팅 인공지능 모델입니다. 이 리더보드의 0902 표기는 2026년 9월 2일 버전의 고정 모델 ID를 뜻합니다.",
@@ -232,6 +271,32 @@ const versions: Record<string, ModelVersionGuide> = {
   },
   "step-5": {
     slug: "step-5", familyKey: "step", officialName: "Step 5 Preview", releaseDate: "2026-09", modelType: "Preview 에이전트 모델", summary: "StepFun이 공식 서비스와 API에서 미리보기로 제공하는 대형 에이전트 모델입니다.", capabilities: ["텍스트·이미지 입력", "코딩", "100만 토큰 컨텍스트", "도구 사용"], access: [{ kind: "web", label: "StepFun 공식 제품", platform: "웹", freeAccess: "unknown", requirements: "계정과 지역·요금제별 이용 가능 여부를 공식 페이지에서 확인해야 합니다.", technicalLevel: "쉬움", steps: ["공식 Step 5 페이지를 엽니다.", "지원 제품으로 이동해 로그인합니다.", "Preview 이용 가능 여부를 확인합니다."], url: "https://www.stepfun.com/step-5-preview", sourceIds: ["step-model"] }, apiAccess("StepFun API", "StepFun 개발자 플랫폼", "https://platform.stepfun.com/", ["step-platform"], "계정, API 키가 필요하며 공개된 가격표를 사용 전에 확인해야 합니다.")], prices: [{ label: "StepFun API", billingType: "api", price: "공식 가격 확인 필요", unit: "사용 전 개발자 플랫폼 확인", observedAt: checked, sourceIds: ["step-platform"] }], glossaryTerms: [], sources: [], status: "published", lastVerifiedAt: checked,
+  },
+  "gemini-3-8-flash": {
+    slug: "gemini-3-8-flash", familyKey: "gemini", officialName: "Gemini 3.8 Flash", releaseDate: "2026-09-02", modelType: "멀티모달 추론·에이전트 모델", summary: "Google이 긴 코딩 작업, 도구 사용과 빠른 응답을 위해 제공하는 Gemini 3 계열 모델입니다.", configurationNote: "리더보드의 ‘high’는 공식 모델명의 일부가 아니라 지원되는 추론 수준 중 높은 설정을 사용했다는 뜻입니다.", capabilities: ["텍스트·이미지 등 멀티모달 입력", "코딩과 도구 호출", "100만 토큰 컨텍스트", "추론 수준 조절"],
+    access: [
+      { kind: "web", label: "Gemini 앱", platform: "웹 · 모바일 앱", freeAccess: "no", requirements: "공식 발표 기준 이 모델 선택은 Google AI Pro 또는 Ultra 등 지원 요금제가 필요합니다.", technicalLevel: "쉬움", steps: ["Gemini 앱에 로그인합니다.", "지원 요금제를 확인합니다.", "모델 선택 메뉴에서 Gemini 3.8 Flash를 선택합니다."], url: "https://gemini.google.com/", sourceIds: ["gemini-release"] },
+      { kind: "api", label: "Google AI Studio · Gemini API", platform: "웹 개발자 도구 · API", freeAccess: "limited", requirements: "Google 계정과 API 키가 필요하며 무료 할당량과 결제 조건은 AI Studio에서 확인해야 합니다.", technicalLevel: "개발자용", steps: ["Google AI Studio에 로그인합니다.", "Gemini API 키와 현재 할당량을 확인합니다.", "gemini-3.8-flash 모델 ID로 첫 요청을 보냅니다."], url: "https://aistudio.google.com/", sourceIds: ["gemini-release", "gemini-docs"] },
+    ],
+    prices: [
+      { label: "Gemini API 소개 가격", billingType: "api", price: "입력 $0.75 · 출력 $3.75", unit: "미화 / 100만 토큰", note: "2026년 12월 31일까지 적용되는 공식 소개 가격입니다.", observedAt: checked, sourceIds: ["gemini-release"] },
+      { label: "Gemini API 표준 가격", billingType: "api", price: "입력 $1.50 · 출력 $7.50", unit: "미화 / 100만 토큰", note: "공식 발표 기준 2027년 1월 1일부터 적용 예정입니다.", observedAt: checked, sourceIds: ["gemini-release"] },
+      { label: "Gemini 앱", billingType: "subscription", price: "지원 요금제의 현재 가격 확인 필요", unit: "Google 공식 요금제", observedAt: checked, sourceIds: ["gemini-release"] },
+    ],
+    glossaryTerms: [], sources: [], status: "published", lastVerifiedAt: checked,
+  },
+  "qwen3-8-2-4t-a95b": {
+    slug: "qwen3-8-2-4t-a95b", familyKey: "qwen-open", officialName: "Qwen3.8-2.4T-A95B", releaseDate: "2026-08-12", modelType: "오픈 웨이트 텍스트 혼합 전문가 모델", summary: "Alibaba가 API와 공개 가중치로 제공하는 2.4T 규모의 텍스트 모델입니다.", capabilities: ["텍스트 입력·출력", "코딩", "함수 호출과 구조화 출력", "최대 약 100만 토큰 확장 컨텍스트", "직접 배포"],
+    access: [
+      apiAccess("Alibaba Cloud Model Studio", "Qwen API · 국제 리전", "https://modelstudio.console.alibabacloud.com/", ["qwen-open-docs"], "Alibaba Cloud 계정과 API 키가 필요하며 선택한 리전의 가격과 가용성을 확인해야 합니다."),
+      { kind: "local", label: "공식 가중치", platform: "대규모 다중 GPU 서버", freeAccess: "yes", requirements: "Qwen3.8 Max License 확인과 수 TB 규모 가중치를 처리할 서버 인프라가 필요합니다.", technicalLevel: "개발자용", steps: ["공식 라이선스의 상업 이용 조건을 읽습니다.", "BF16 또는 FP8 가중치와 지원 런타임을 선택합니다.", "여러 GPU 서버에서 짧은 컨텍스트 요청부터 검증합니다."], url: "https://huggingface.co/Qwen/Qwen3.8-2.4T-A95B", sourceIds: ["qwen-open-weights", "qwen-open-license", "qwen-open-fp8"] },
+    ],
+    prices: [
+      { label: "Model Studio API · 싱가포르 국제 리전", billingType: "api", price: "입력 $2 · 출력 $6 · 캐시 적중 입력 $0.25", unit: "미화 / 100만 토큰", note: "리전별 가격이 다르므로 다른 리전의 단가와 혼합하지 않았습니다.", observedAt: checked, sourceIds: ["qwen-open-docs"] },
+      { label: "공식 가중치", billingType: "open-weights", price: "다운로드 가능", unit: "스토리지·GPU·운영비 별도", observedAt: checked, sourceIds: ["qwen-open-weights", "qwen-open-license"] },
+    ],
+    openWeights: { license: "Qwen3.8 Max License — 대규모 상업 서비스 및 제품 표시에 추가 조건", licenseUrl: "https://huggingface.co/Qwen/Qwen3.8-2.4T-A95B/blob/main/LICENSE", downloadUrl: "https://huggingface.co/Qwen/Qwen3.8-2.4T-A95B", meaning: "모델이 학습한 가중치를 내려받아 라이선스 조건에 따라 직접 실행할 수 있습니다. 서비스 전체 소스코드가 공개됐다는 뜻은 아닙니다.", parameterScale: "총 2.4T · 요청당 약 95B 활성", precisions: "공식 BF16 및 FP8 체크포인트", estimatedWeightMemory: "BF16 단순 환산은 약 4.8TB이고 공식 BF16 저장소는 약 4.89TB입니다. FP8 단순 환산은 약 2.4TB입니다.", runtimeMemoryNote: "가중치 크기는 최소 VRAM이 아닙니다. 런타임, KV 캐시, 배치와 긴 컨텍스트에 추가 메모리가 필요합니다.", cpuGpuNote: "전체 모델의 CPU 실행은 실용적이지 않습니다. 여러 서버급 GPU에 분산하는 배포가 적합하며 초보자는 공식 API가 현실적입니다.", tools: [{ name: "vLLM", url: "https://docs.vllm.ai/" }, { name: "SGLang", url: "https://docs.sglang.ai/" }, { name: "TokenSpeed", url: "https://github.com/QwenLM/TokenSpeed" }], steps: ["라이선스와 상업 이용 조건을 확인합니다.", "BF16·FP8 중 정밀도와 여러 GPU 구성을 선택합니다.", "공식 모델 카드의 명령으로 짧은 요청을 먼저 검증합니다.", "컨텍스트 길이를 늘리며 KV 캐시와 전체 메모리를 측정합니다."], sourceIds: ["qwen-open-weights", "qwen-open-license", "qwen-open-fp8"] },
+    glossaryTerms: [], sources: [], status: "published", lastVerifiedAt: checked,
   },
   "qwen3-8-max": {
     slug: "qwen3-8-max", familyKey: "qwen", officialName: "Qwen3.8-Max-0902", releaseDate: "2026-09-02", modelType: "호스팅 멀티모달 모델", summary: "Alibaba Cloud Model Studio에서 API로 사용하는 Qwen3.8 Max의 2026년 9월 2일 고정 버전입니다.", capabilities: ["텍스트·이미지·영상 입력", "코딩", "함수 호출과 구조화 출력", "100만 토큰 컨텍스트"], access: [apiAccess("Alibaba Cloud Model Studio", "Qwen API", "https://modelstudio.console.alibabacloud.com/", ["qwen-docs", "qwen-pricing"], "Alibaba Cloud 계정, API 키와 지원 지역 확인이 필요합니다.")], prices: [{ label: "Model Studio API", billingType: "api", price: "공식 가격 확인 필요", unit: "지역별 공식 가격표 확인", observedAt: checked, sourceIds: ["qwen-pricing"] }], glossaryTerms: [], sources: [], status: "published", lastVerifiedAt: checked,
