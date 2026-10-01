@@ -2,9 +2,51 @@ import type { GuideSource, ModelFamilyGuide, ModelVersionGuide, ResolvedModelGui
 import type { Model } from "./types";
 
 const checked = "2026-09-23";
-const source = (id: string, label: string, url: string, kind: GuideSource["kind"]): GuideSource => ({ id, label, url, kind, verifiedAt: checked });
+const updateChecked = "2026-10-01";
+const source = (id: string, label: string, url: string, kind: GuideSource["kind"], verifiedAt = checked): GuideSource => ({ id, label, url, kind, verifiedAt });
 
 const families: Record<string, ModelFamilyGuide> = {
+  "openai-sol-6-1": {
+    key: "openai-sol-6-1", officialName: "GPT-6.1 Sol", provider: "OpenAI",
+    introduction: "GPT-6.1 Sol은 OpenAI가 만든 인공지능 모델입니다. 코드를 작성·수정하거나, 긴 문서와 이미지를 분석하고, 연결된 도구로 여러 단계의 업무를 처리할 수 있습니다. GPT-6 Sol과는 별도 버전이며, ChatGPT에서는 일반 Chat이 아니라 Work 또는 Codex에서 선택합니다.",
+    useCases: [
+      { title: "프로그램 만들기와 수정", description: "기존 코드와 요구사항을 함께 주고 기능 구현, 오류 수정과 검토를 요청할 수 있습니다.", sourceIds: ["sol61-docs"] },
+      { title: "긴 문서와 이미지 분석", description: "텍스트와 이미지를 입력해 자료를 읽고 비교하거나 결과물을 작성하는 데 사용할 수 있습니다.", sourceIds: ["sol61-docs"] },
+      { title: "여러 단계의 업무", description: "검색·파일·컴퓨터 도구를 연결해 필요한 자료를 찾고 작업을 이어갈 수 있습니다. API*에서 도구를 쓰려면 Responses 방식을 사용합니다.", sourceIds: ["sol61-docs"] },
+    ],
+    strengths: [{ title: "큰 자료를 함께 입력", description: "API는 최대 105만 토큰*의 입력·대화 범위를 지원합니다. 실제 사용 한도와 도구는 이용 제품에 따라 다릅니다.", sourceIds: ["sol61-docs", "sol61-access"] }],
+    cautions: [
+      { title: "긴 입력과 빠른 처리의 추가 비용", description: "입력 272K 토큰을 넘으면 요청 전체의 입력·캐시 단가는 2배, 출력 단가는 1.5배입니다. Fast 모드는 Standard의 2배입니다.", sourceIds: ["sol61-docs"] },
+      { title: "지원하지 않는 입력", description: "이 모델의 API는 음성과 영상 입력을 직접 지원하지 않습니다. 중요한 답변과 코드는 원문·테스트로 확인하세요.", sourceIds: ["sol61-docs"] },
+    ],
+    glossaryTerms: ["API", "토큰", "컨텍스트 윈도", "추론", "에이전트", "환각"],
+    sources: [
+      source("sol61-docs", "GPT-6.1 Sol 모델·API 가격", "https://developers.openai.com/api/docs/models/gpt-6.1-sol", "documentation", updateChecked),
+      source("sol61-release", "OpenAI API 출시 기록 · 2026년 9월 29일", "https://developers.openai.com/api/docs/changelog", "release", updateChecked),
+      source("sol61-access", "ChatGPT Work · Codex 모델 이용 조건", "https://learn.chatgpt.com/docs/models", "access", updateChecked),
+      source("sol61-plans", "ChatGPT Work · Codex 요금제", "https://learn.chatgpt.com/docs/pricing", "pricing", updateChecked),
+    ],
+  },
+  "anthropic-sonnet-5-5": {
+    key: "anthropic-sonnet-5-5", officialName: "Claude Sonnet 5.5", provider: "Anthropic",
+    introduction: "Claude Sonnet 5.5는 Anthropic이 만든 인공지능 모델입니다. 글과 이미지를 읽고 문서를 작성하거나, 프로그램을 만들고 수정하는 데 사용할 수 있습니다. Claude 웹·앱에서 대화로 시작할 수 있고, 개발자는 API*로 자신의 서비스에 연결할 수 있습니다.",
+    useCases: [
+      { title: "글쓰기와 자료 정리", description: "문서의 내용을 비교하고, 초안과 발표 자료를 작성하는 일상적인 지식 업무에 사용할 수 있습니다.", sourceIds: ["sonnet55-release"] },
+      { title: "프로그램 개발", description: "코드 이해, 기능 추가, 오류 수정과 코드 검토에 사용할 수 있습니다.", sourceIds: ["sonnet55-release"] },
+      { title: "이미지와 긴 문서 이해", description: "API는 텍스트·이미지 입력과 최대 100만 토큰*의 대화 범위를 지원합니다. 이미지 생성 모델은 아닙니다.", sourceIds: ["sonnet55-docs"] },
+    ],
+    strengths: [{ title: "필요에 맞게 생각하는 정도 조절", description: "API에서 추론* 노력을 조절해 작업에 맞는 시간과 비용을 선택할 수 있습니다. 많이 생각하도록 설정하면 비용이 늘어날 수 있습니다.", sourceIds: ["sonnet55-release", "sonnet55-docs"] }],
+    cautions: [
+      { title: "무료 이용에도 한도가 있음", description: "Claude 무료 요금제에서 시작할 수 있지만 사용량 한도가 있습니다. 앱 구독과 API 사용료는 별도입니다.", sourceIds: ["sonnet55-plans", "sonnet55-release"] },
+      { title: "기존 API 코드의 변경 필요", description: "이전 Sonnet과 도구·추론 설정의 처리 방식이 달라졌습니다. 개발자는 공식 이전 가이드를 확인하고 테스트해야 합니다.", sourceIds: ["sonnet55-docs"] },
+    ],
+    glossaryTerms: ["API", "토큰", "컨텍스트 윈도", "추론", "에이전트", "벤치마크", "환각"],
+    sources: [
+      source("sonnet55-release", "Claude Sonnet 5.5 공식 발표", "https://www.anthropic.com/claude-sonnet-5-5", "release", updateChecked),
+      source("sonnet55-docs", "Claude Sonnet 5.5 사양·API 가격", "https://platform.claude.com/docs/en/models/sonnet-5-5/overview", "documentation", updateChecked),
+      source("sonnet55-plans", "Claude 공식 요금제", "https://claude.com/pricing", "pricing", updateChecked),
+    ],
+  },
   openai: {
     key: "openai", officialName: "OpenAI GPT", provider: "OpenAI",
     introduction: "OpenAI의 GPT 모델은 질문에 답하고, 문서를 분석하고, 코드를 작성하며, 연결된 도구를 사용하도록 설계된 인공지능입니다. 이 페이지의 ‘max’는 별도 제품명이 아니라 답을 만들 때 더 많은 추론 자원을 쓰도록 한 평가 설정입니다.",
@@ -211,6 +253,20 @@ const versions: Record<string, ModelVersionGuide> = {
     prices: [{ label: "OpenAI API Standard · 짧은 컨텍스트", billingType: "api", price: "입력 $10 · 캐시 입력 $1 · 출력 $50", unit: "미화 / 100만 토큰", note: "272K를 넘는 긴 입력과 Fast·지역 처리에는 다른 배수가 적용됩니다.", observedAt: checked, sourceIds: ["astra-docs", "openai-pricing"] }],
     glossaryTerms: ["프런티어 모델"], sources: [source("astra-docs", "GPT-6 Astra 모델 문서", "https://developers.openai.com/api/docs/models/gpt-6-astra", "documentation"), source("astra-release", "GPT-6 Astra 발표", "https://openai.com/index/gpt-6-astra/", "release")], status: "published", lastVerifiedAt: checked,
   },
+  "gpt-6-1-sol": {
+    slug: "gpt-6-1-sol", familyKey: "openai-sol-6-1", officialName: "GPT-6.1 Sol", contextTokens: 1_050_000, releaseDate: "2026-09-29", modelType: "코딩·문서·도구 사용 모델", summary: "코딩과 문서 작업을 반복해서 맡기면서 비용도 고려할 때 선택할 수 있는 OpenAI 모델입니다.",
+    configurationNote: "GPT-6 Sol의 새 버전이며 API 이름은 gpt-6.1-sol입니다. ‘max’는 평가의 추론 노력 설정입니다. API 기본값은 medium이고 low·medium·high·xhigh·max를 지원합니다.",
+    capabilities: ["텍스트·이미지 입력", "코딩과 컴퓨터 사용", "검색·파일·도구 호출", "105만 토큰 컨텍스트"],
+    access: [
+      { kind: "app", label: "ChatGPT Work · Codex", platform: "웹 · 모바일 · 데스크톱 · 개발 도구", freeAccess: "no", requirements: "출시 기준 Plus, Pro, Business, Enterprise, Edu에 제공됩니다. Enterprise·Edu는 관리자의 활성화가 필요하며 계정별 배포 상황과 한도가 다릅니다. 일반 Chat에서는 선택할 수 없습니다.", technicalLevel: "쉬움", steps: ["지원 요금제의 ChatGPT 계정으로 로그인합니다.", "Work 또는 Codex를 열고 모델 메뉴에서 GPT-6.1 Sol을 선택합니다.", "모델이 보이지 않으면 계정의 배포 상태와 조직 관리자 설정을 확인합니다."], url: "https://chatgpt.com/", sourceIds: ["sol61-access", "sol61-plans"] },
+      apiAccess("OpenAI API", "Responses API", "https://developers.openai.com/api/docs/models/gpt-6.1-sol", ["sol61-docs"], "OpenAI 개발자 계정·API 키·별도 API 결제가 필요합니다. 도구 호출은 Responses API를 사용하고 모델 ID는 gpt-6.1-sol입니다."),
+    ],
+    prices: [
+      { label: "OpenAI API Standard · 입력 272K 이하", billingType: "api", price: "입력 $2 · 캐시 입력 $0.10 · 출력 $10", unit: "미화 / 100만 토큰", note: "캐시 쓰기는 $2.50입니다. 긴 입력·Fast·지역 처리·도구 이용료는 별도 조건이 적용됩니다.", observedAt: updateChecked, sourceIds: ["sol61-docs"] },
+      { label: "ChatGPT Work · Codex", billingType: "subscription", price: "지원 요금제의 공식 가격표 확인", unit: "구독·크레딧 사용 · API 결제와 별도", observedAt: updateChecked, sourceIds: ["sol61-plans", "sol61-access"] },
+    ],
+    glossaryTerms: [], sources: [], status: "published", lastVerifiedAt: updateChecked,
+  },
   "gpt-6-sol": {
     slug: "gpt-6-sol", familyKey: "openai", officialName: "GPT-6 Sol", releaseDate: "2026-09-22", modelType: "코딩·에이전트 추론 모델", summary: "복잡한 코딩과 에이전트 작업에서 성능과 비용의 균형을 목표로 한 GPT-6 모델입니다.", configurationNote: "‘max’는 평가에 쓴 최대 추론 노력 설정입니다. 기본 API 설정은 medium입니다.", capabilities: ["텍스트·이미지 입력", "코딩과 컴퓨터 사용", "검색·파일·도구 호출", "105만 토큰 컨텍스트"],
     access: [
@@ -234,6 +290,20 @@ const versions: Record<string, ModelVersionGuide> = {
   },
   "gpt-5-6-terra": {
     slug: "gpt-5-6-terra", familyKey: "openai", officialName: "GPT-5.6 Terra", modelType: "균형형 추론 모델", summary: "성능, 속도와 비용의 균형을 목표로 한 OpenAI의 GPT-5.6 모델입니다.", configurationNote: "‘max’는 모델명이 아니라 평가의 추론 노력 설정입니다.", capabilities: ["텍스트·이미지 입력", "도구 호출", "105만 토큰 컨텍스트"], access: [apiAccess("OpenAI API", "Responses API", "https://developers.openai.com/api/docs/models/gpt-5.6-terra", ["gpt56terra-docs", "openai-pricing"])], prices: [{ label: "OpenAI API", billingType: "api", price: "입력 $2 · 캐시 입력 $0.20 · 출력 $12", unit: "미화 / 100만 토큰", observedAt: checked, sourceIds: ["gpt56terra-docs", "openai-pricing"] }], glossaryTerms: [], sources: [source("gpt56terra-docs", "GPT-5.6 Terra 모델 문서", "https://developers.openai.com/api/docs/models/gpt-5.6-terra", "documentation")], status: "published", lastVerifiedAt: checked,
+  },
+  "claude-sonnet-5-5": {
+    slug: "claude-sonnet-5-5", familyKey: "anthropic-sonnet-5-5", officialName: "Claude Sonnet 5.5", contextTokens: 1_000_000, releaseDate: "2026-09-28", modelType: "대화·코딩·문서 작업 모델", summary: "무료 Claude 대화로 시작해 문서 정리와 일상적인 개발 작업에 사용할 수 있는 모델입니다.",
+    configurationNote: "API 이름은 claude-sonnet-5-5입니다. API 기본 추론 노력은 high이며, 리더보드의 괄호 표기는 평가에 사용한 설정입니다. 앱과 API의 설정은 같지 않을 수 있습니다.",
+    capabilities: ["텍스트·이미지 입력", "코딩과 도구 사용", "적응형 추론", "100만 토큰 컨텍스트"],
+    access: [
+      { kind: "web", label: "Claude 웹 · 앱", platform: "웹 · iOS · Android", freeAccess: "limited", requirements: "Claude 계정이 필요합니다. 무료 요금제로 시작할 수 있고 더 많은 사용량은 유료 요금제에서 제공합니다.", technicalLevel: "쉬움", steps: ["Claude에 가입하거나 로그인합니다.", "대화를 열고 Sonnet 5.5의 이용 가능 여부를 확인합니다.", "질문을 입력하거나 문서·이미지를 첨부합니다. 사용량 한도에 도달하면 기다리거나 요금제를 확인합니다."], url: "https://claude.ai/", sourceIds: ["sonnet55-release", "sonnet55-plans"] },
+      apiAccess("Claude API", "Claude Console · Messages API", "https://platform.claude.com/", ["sonnet55-docs"], "개발자 계정·API 키·별도 API 결제가 필요합니다. 모델 ID claude-sonnet-5-5로 요청하며 앱 구독에 API 요금이 포함되지는 않습니다."),
+    ],
+    prices: [
+      { label: "Claude 웹 · 앱", billingType: "subscription", price: "Free $0 · Pro 월 $20 · Max 월 $100부터", unit: "미화 / 월 · 세금 별도", note: "Pro 연간 결제는 $200 선결제입니다. 이용 한도와 지역별 최종 결제 금액은 공식 가격표에서 확인하세요.", observedAt: updateChecked, sourceIds: ["sonnet55-plans"] },
+      { label: "Claude API", billingType: "api", price: "입력 $2 · 캐시 읽기 $0.20 · 출력 $10", unit: "미화 / 100만 토큰", note: "5분 캐시 쓰기 $2.50, 1시간 캐시 쓰기 $4입니다. 배치·지역 처리에는 다른 조건이 적용됩니다.", observedAt: updateChecked, sourceIds: ["sonnet55-docs"] },
+    ],
+    glossaryTerms: [], sources: [], status: "published", lastVerifiedAt: updateChecked,
   },
   "claude-opus-5-5": {
     slug: "claude-opus-5-5", familyKey: "anthropic", officialName: "Claude Opus 5.5", releaseDate: "2026-09-22", modelType: "코딩·지식 업무 모델", summary: "Anthropic이 복잡한 코딩과 지식 업무를 위해 출시한 Claude 5.5 계열 모델입니다.", configurationNote: "괄호 안 표기는 공식 제품명이 아니라 리더보드 평가 설정입니다. 일부 안전 분류 요청은 fallback 설정에 따라 다른 모델로 처리될 수 있습니다.", capabilities: ["텍스트·이미지 입력", "코딩과 도구 사용", "적응형 추론"],

@@ -4,7 +4,8 @@ import { latestModelComparison, latestModelComparisonSource } from "../src/lib/l
 
 describe("latest model coverage", () => {
   it("keeps GPT-6 Sol and Luna in the official comparison chart", () => {
-    expect(latestModelComparison.map((model) => model.slug)).toEqual(["gpt-6-astra", "gpt-6-sol", "gpt-6-luna"]);
+    expect(latestModelComparison.map((model) => model.slug)).toEqual(["gpt-6-astra", "gpt-6-1-sol", "gpt-6-sol", "gpt-6-luna"]);
+    expect(latestModelComparison.find((model) => model.slug === "gpt-6-1-sol")).toMatchObject({ inputPrice: 2, outputPrice: 10, context: 1_050_000 });
     expect(latestModelComparison.find((model) => model.slug === "gpt-6-luna")).toMatchObject({ inputPrice: 0.1, outputPrice: 0.5, context: 1_050_000 });
     expect(latestModelComparisonSource.url).toMatch(/^https:\/\/developers\.openai\.com\//);
   });
