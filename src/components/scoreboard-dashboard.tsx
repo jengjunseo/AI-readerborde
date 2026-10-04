@@ -39,7 +39,7 @@ export function ScoreboardDashboard({ data }: { data: PublicData }) {
             {compareMode && <td><button type="button" className="selection-control" aria-pressed={selected.includes(entry.model.slug)} aria-label={`${entry.model.name} 비교 ${selected.includes(entry.model.slug) ? "해제" : "선택"}`} onClick={() => select(entry.model.slug)}>{selected.includes(entry.model.slug) ? "✓" : "+"}</button></td>}
             <td className="rank-column">{entry.rank}</td>
             <th scope="row"><Link className="ranking-model" href={href}><ProviderIcon provider={entry.model.provider} /><span><b>{displayName(entry.model.name)}</b><small>{entry.model.provider}{setting ? ` · 평가 설정: ${setting}` : ""}</small></span></Link></th>
-            <td className="metric-column"><Link className="ranking-metric" href={href} aria-label={`${entry.model.name} ${metricHeading(active)} ${metricText(entry, active, data.snapshot.methodVersion)}, 상세 보기`}>{metricText(entry, active, data.snapshot.methodVersion)}</Link></td>
+            <td className="metric-column"><Link className="ranking-metric" href={href} aria-label={`${entry.model.name} ${metricHeading(active, data.snapshot.methodVersion)} ${metricText(entry, active, data.snapshot.methodVersion)}, 상세 보기`}>{metricText(entry, active, data.snapshot.methodVersion)}</Link></td>
           </tr>;
         })}</tbody>
       </table> : <div className="ranking-empty">{board.entries.length ? "검색 결과가 없습니다." : "평가 자료가 없어 아직 순위를 제공하지 않습니다."}</div>}
