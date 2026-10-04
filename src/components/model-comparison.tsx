@@ -52,6 +52,7 @@ export function ModelComparison({ snapshot, models, guides }: { snapshot: Snapsh
       {(() => {
         const a=entryFor(compared[0]!); const b=entryFor(compared[1]!);
         if(!a || !b) return null;
+        if(active==="value" && snapshot.methodVersion!=="v2.1") return null;
         const left=active==="value" ? a.price : active==="speed" ? a.speed : a.value;
         const right=active==="value" ? b.price : active==="speed" ? b.speed : b.value;
         if(left===undefined || right===undefined) return null;
