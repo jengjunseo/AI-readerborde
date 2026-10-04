@@ -1,6 +1,7 @@
 /* Readable, compact presentation; retains the existing dark palette. */
 body { font-size:16px; line-height:1.65; overflow-wrap:anywhere; }
 .shell { width:min(1120px,calc(100% - 40px)); }
+.scoreboard-home { max-width:900px; }
 .topbar { min-height:64px; height:auto; flex-wrap:wrap; gap:12px 28px; padding:10px 0; }
 .topbar nav { font-size:14px; gap:20px; }
 .topbar nav a { display:inline-flex; align-items:center; min-height:44px; }
