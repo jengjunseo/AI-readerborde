@@ -7,7 +7,7 @@ import * as schema from "../src/db/schema";
 import { curatedAdapter } from "../src/ingest/adapters/curated";
 import type { SourceAdapter } from "../src/ingest/adapters/types";
 import { rollbackBoard, runDailyPipeline } from "../src/ingest/pipeline/runner";
-import { loadPublicSnapshotFromDb } from "../src/lib/public-data";
+import { loadPublicSnapshotFromDb, publishedRunFromDb } from "../src/lib/public-data";
 
 async function testDb() {
   const client = new PGlite();
@@ -64,11 +64,31 @@ describe("durable daily pipeline", () => {
     const failed = await runDailyPipeline(db, [fixtureAdapter], "2026-09-18", { failAt: "before-publish" });
     expect(failed.status).toBe("failed");
     expect(await db.select().from(schema.publishedPointers)).toEqual(before);
+    expect((await publishedRunFromDb(db))?.id).toBe(baseline.runId);
+    expect((await loadPublicSnapshotFromDb(db))?.date).toBe("2026-09-17");
     const next = await runDailyPipeline(db, [fixtureAdapter], "2026-09-18");
     expect(next.status).toBe("published");
     await rollbackBoard(db, "overall", baseline.snapshotIds.overall);
     const overall = (await db.select().from(schema.publishedPointers)).find((pointer) => pointer.boardSlug === "overall");
     expect(overall?.snapshotId).toBe(baseline.snapshotIds.overall);
+    expect((await publishedRunFromDb(db))?.id).toBe(baseline.runId);
+    await client.close();
+  });
+
+  it("never substitutes per-token pricing for a missing evaluation task cost", async () => {
+    const { client, db } = await testDb();
+    const fixture = await fixtureAdapter.fetch();
+    const target = fixture.records.find((r) => r.kind === "model_meta")!.externalId;
+    const noCost: SourceAdapter = { ...fixtureAdapter, async fetch() {
+      return { ...fixture, records: fixture.records.filter((r) => !(r.externalId === target && r.kind === "metric" && r.metricKey === "cost_per_task")) };
+    } };
+    expect((await runDailyPipeline(db,[noCost],"2026-10-05")).status).toBe("published");
+    const snapshot=await loadPublicSnapshotFromDb(db);
+    const name=fixture.records.find((r) => r.kind==="model_meta" && r.externalId===target);
+    const entry=snapshot!.boards.overall.entries.find((e)=> e.model.name === (name?.kind==="model_meta" ? name.name : ""));
+    expect(entry).toBeDefined();
+    expect(entry?.model.inputPrice).toBeGreaterThan(0);
+    expect(entry?.price).toBeUndefined();
     await client.close();
   });
 

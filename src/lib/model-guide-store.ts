@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import type { AppDb } from "@/db/client";
 import { modelGuideFamilies as guideFamilyTable, modelVersionGuides as guideVersionTable, models, modelVersions, providers } from "@/db/schema";
 import { modelGuideFamilies, modelVersionGuides, resolveModelGuide } from "./model-guides";
@@ -38,4 +38,13 @@ export async function loadPublishedModelGuide(db: AppDb, model: Model): Promise<
     .where(and(eq(models.slug, model.slug), eq(modelVersions.version, model.version), eq(guideVersionTable.status, "published")))
     .limit(1))[0];
   return row?.content as ResolvedModelGuide | undefined;
+}
+
+export async function loadPublishedModelGuides(db: AppDb, items: Model[]): Promise<Record<string, ResolvedModelGuide>> {
+  if (!items.length) return {};
+  const rows = await db.select({ slug: models.slug, version: modelVersions.version, content: guideVersionTable.content }).from(guideVersionTable)
+    .innerJoin(modelVersions, eq(guideVersionTable.modelVersionId, modelVersions.id))
+    .innerJoin(models, eq(modelVersions.modelId, models.id))
+    .where(and(inArray(models.slug, items.map((item) => item.slug)), eq(guideVersionTable.status, "published")));
+  return Object.fromEntries(rows.filter((row) => items.some((item) => item.slug === row.slug && item.version === row.version)).map((row) => [row.slug, row.content as ResolvedModelGuide]));
 }

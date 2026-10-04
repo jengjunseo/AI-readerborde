@@ -2,30 +2,15 @@ import { createHash, randomUUID } from "node:crypto";
 import { and, eq, inArray } from "drizzle-orm";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import * as schema from "@/db/schema";
-import { normalize } from "@/lib/ranking";
+import { axisDefinitions, methodVersion, normalizedValue } from "@/lib/scoring-method";
 import type { BoardSlug } from "@/lib/types";
 import type { ExternalRecord, SourceAdapter } from "../adapters/types";
 
 type Db = NeonDatabase<typeof schema>;
 type RawObservation = typeof schema.rawObservations.$inferSelect;
 type FailurePoint = "before-publish";
-const methodVersion = "v2.1";
 export const boardDefinitions: BoardSlug[] = ["overall", "coding", "agentic", "value", "speed", "korean"];
 
-const metricAnchors: Record<string, readonly [number, number]> = {
-  gpqa: [0, 100], hle: [0, 100], terminal_bench: [0, 100], scicode: [0, 100], swe_bench: [0, 100],
-  gdpval: [0, 100], analyst_agent: [0, 100], apex_agents: [0, 100], itbench_sre: [0, 100],
-  long_context: [0, 100], multimodal: [0, 100], korean: [0, 100], output_speed: [20, 400],
-};
-const axisDefinitions = {
-  reasoning: { weight: 0.25, metrics: ["gpqa", "hle"] },
-  coding: { weight: 0.25, metrics: ["terminal_bench", "scicode", "swe_bench"] },
-  agentic: { weight: 0.15, metrics: ["gdpval", "analyst_agent", "apex_agents", "itbench_sre"] },
-  context: { weight: 0.10, metrics: ["long_context", "multimodal"] },
-  korean: { weight: 0.10, metrics: ["korean"] },
-  value: { weight: 0.10, metrics: ["cost_per_task"] },
-  speed: { weight: 0.05, metrics: ["output_speed"] },
-} as const;
 
 async function sourceFor(db: Db, adapter: SourceAdapter) {
   const existing = await db.select().from(schema.sources).where(eq(schema.sources.slug, adapter.id));
@@ -52,12 +37,6 @@ async function identityForTrusted(db: Db, record: Extract<ExternalRecord, { kind
 
 async function aliasFor(db: Db, sourceKey: string, externalId: string) {
   return (await db.select().from(schema.modelAliases).where(and(eq(schema.modelAliases.sourceKey, sourceKey), eq(schema.modelAliases.externalId, externalId))))[0];
-}
-
-function normalizedValue(metricKey: string, raw: number) {
-  if (metricKey === "cost_per_task") return Math.max(0, Math.min(100, 100 - normalize(raw, [0, 8])));
-  const anchor = metricAnchors[metricKey];
-  return anchor ? normalize(raw, anchor) : undefined;
 }
 
 function leaf(observation: RawObservation, normalized: number, weight: number) {

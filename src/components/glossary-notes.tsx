@@ -69,8 +69,9 @@ function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-export function GlossaryText({ text }: { text: string }) {
+export function GlossaryText({ text, annotate = false }: { text: string; annotate?: boolean }) {
   const context = useContext(GlossaryContext);
+  if (!annotate) return text.replace(/\*/g, "");
   if (!context || !context.entries.length) return text;
   const byTerm = new Map(context.entries.map((entry) => [entry.term, entry]));
   const terms = [...byTerm.keys()].sort((a, b) => b.length - a.length);
@@ -82,4 +83,9 @@ export function GlossaryText({ text }: { text: string }) {
     seen.add(part);
     return <button key={`${part}-${index}`} type="button" className="term-note-trigger" aria-haspopup="dialog" aria-label={`${part} 뜻 보기`} onClick={() => context.open(entry)}>[{part}]</button>;
   })}</>;
+}
+
+export function GlossaryTerms() {
+  const context = useContext(GlossaryContext);
+  return <div className="glossary-collection">{context?.entries.map((entry) => <button key={entry.term} type="button" className="term-note-trigger" aria-haspopup="dialog" onClick={() => context.open(entry)} aria-label={`${entry.term} 뜻 보기`}>[{entry.term}]</button>)}</div>;
 }

@@ -12,6 +12,6 @@ export function SiteHeader({ date }: { date?: string }) {
       <Link href="/compare">비교</Link>
       <Link href="/methodology">방법론</Link>
     </nav>
-    {date && <time dateTime={date} className="snapshot-date">{formatted} 00:00 KST</time>}
+    {date && <time dateTime={date} className="snapshot-date">순위 기준 {formatted} · KST</time>}
   </header>;
 }

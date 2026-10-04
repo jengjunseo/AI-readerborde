@@ -3,7 +3,7 @@ export const runtime = "nodejs";
 export async function GET() {
   const data = await loadPublicData();
   const cronConfigured = Boolean(process.env.CRON_SECRET);
-  const healthy = data.source === "database" && cronConfigured;
+  const healthy = data.source === "database" && cronConfigured && !data.health.stale;
   return Response.json({
     status: healthy ? "ok" : "degraded",
     database: data.source === "database" ? "connected" : "unavailable",

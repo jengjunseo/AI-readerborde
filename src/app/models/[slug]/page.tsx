@@ -3,11 +3,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { and, eq } from "drizzle-orm";
-import { AlertTriangle, ArrowLeft, BookOpen, CheckCircle2, CircleDollarSign, Code2, Download, ExternalLink, Globe2, Laptop, ShieldCheck, Sparkles } from "lucide-react";
-import { DataStatus } from "@/components/data-status";
-import { GlossaryNotes, GlossaryText } from "@/components/glossary-notes";
-import { ProviderIcon } from "@/components/provider-icon";
 import { SiteHeader } from "@/components/site-header";
+import { DataStatus } from "@/components/data-status";
+import { GlossaryNotes, GlossaryTerms, GlossaryText } from "@/components/glossary-notes";
+import { ProviderIcon } from "@/components/provider-icon";
 import { getDb } from "@/db/client";
 import { models, modelVersions, providers } from "@/db/schema";
 import { glossaryEntries } from "@/lib/glossary";
@@ -15,9 +14,11 @@ import { loadPublishedModelGuide } from "@/lib/model-guide-store";
 import { modelGuideFamilies, modelVersionGuides, resolveModelGuide } from "@/lib/model-guides";
 import type { GuideSource, ResolvedModelGuide } from "@/lib/model-guide-types";
 import { loadPublicData } from "@/lib/public-data";
-import type { RankedEntry } from "@/lib/types";
-
-const boardLabels = { overall: "종합", coding: "코딩", agentic: "업무·에이전트", value: "가성비", speed: "속도", korean: "한국어" } as const;
+import { pricesFor } from "@/lib/guide-presentation";
+import { boardMeta, boardOrder } from "@/lib/board-meta";
+import { boardSlug, contextText, displayName, evaluationSetting, metricText, safeReturn } from "@/lib/presentation";
+import { axisDefinitions, missingMetrics } from "@/lib/scoring-method";
+import type { BoardSlug, RankedEntry } from "@/lib/types";
 
 const loadModelPage = cache(async (slug: string) => {
   const data = await loadPublicData();
@@ -42,66 +43,75 @@ const loadModelPage = cache(async (slug: string) => {
   if (db) {
     try { guide = await loadPublishedModelGuide(db, model) ?? guide; } catch { /* Code-reviewed catalog remains the safe fallback. */ }
   }
-  const boardEntries = Object.fromEntries(Object.entries(data.snapshot.boards).map(([key, board]) => [key, board.entries.find((entry) => entry.model.slug === slug)])) as Record<keyof typeof boardLabels, RankedEntry | undefined>;
+  const boardEntries = Object.fromEntries(Object.entries(data.snapshot.boards).map(([key, board]) => [key, board.entries.find((entry) => entry.model.slug === slug)])) as Record<BoardSlug, RankedEntry | undefined>;
   return { data, model, guide, boardEntries };
 });
 
+
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
-  const { slug } = await params;
-  const page = await loadModelPage(slug);
-  if (!page) return { title: "모델을 찾을 수 없음 · AI SCOREBOARD" };
-  return { title: `${page.guide.officialName} 사용법·가격·평가 | AI SCOREBOARD`, description: page.guide.summary };
+  const page = await loadModelPage((await params).slug);
+  return { title: page ? `${page.guide.officialName} 사용법·가격·평가 | AI SCOREBOARD` : "모델을 찾을 수 없음", description: page?.guide.summary };
 }
 
-function SourceRefs({ ids, sources }: { ids: string[]; sources: GuideSource[] }) {
-  const matched = ids.map((id) => sources.find((item) => item.id === id)).filter((item): item is GuideSource => Boolean(item));
-  if (!matched.length) return null;
-  return <span className="guide-source-refs" aria-label="이 설명의 출처">{matched.map((item, index) => <a key={item.id} href={`#source-${item.id}`}>{index ? " · " : ""}근거 {sources.findIndex((candidate) => candidate.id === item.id) + 1}</a>)}</span>;
+function Sources({ ids, sources }: { ids: string[]; sources: GuideSource[] }) {
+  return <span className="detail-sources">{ids.map((id) => sources.find((s) => s.id === id)).filter((s): s is GuideSource => Boolean(s)).map((s) =>
+    <a key={s.id} href={s.url} target="_blank" rel="noreferrer">{s.label} ↗ <small>확인 {s.verifiedAt}</small></a>)}</span>;
 }
 
-function SectionTitle({ title }: { title: string }) {
-  return <header className="guide-section-title"><h2>{title}</h2></header>;
-}
-
-function AccessIcon({ kind }: { kind: ResolvedModelGuide["access"][number]["kind"] }) {
-  if (kind === "api") return <Code2 aria-hidden="true" />;
-  if (kind === "local") return <Download aria-hidden="true" />;
-  if (kind === "app") return <Laptop aria-hidden="true" />;
-  return <Globe2 aria-hidden="true" />;
-}
-
-function AccessGuide({ guide }: { guide: ResolvedModelGuide }) {
-  if (!guide.access.length) return <div className="guide-pending"><AlertTriangle aria-hidden="true" /><div><b>이용 방법을 확인하고 있습니다.</b><p>공식 서비스, API와 요금제 정보가 검증되기 전에는 링크나 사용 방법을 추측해서 표시하지 않습니다.</p></div></div>;
-  return <div className="access-list">{guide.access.map((path, index) => <article className="access-path" key={`${path.kind}-${path.label}`}>
-    <div className="access-order">{index + 1}</div><div className="access-main"><header><span className="access-icon"><AccessIcon kind={path.kind} /></span><div><h3>{path.label}</h3><p>{path.platform}</p></div><div className="access-badges"><span>{path.technicalLevel}</span><span className={`free-${path.freeAccess}`}>{path.freeAccess === "yes" ? "무료 다운로드" : path.freeAccess === "limited" ? "무료 한도 있음" : path.freeAccess === "no" ? "유료" : "조건 확인"}</span></div></header><p className="access-requirement"><GlossaryText text={path.requirements} /></p><ol>{path.steps.map((step) => <li key={step}><GlossaryText text={step} /></li>)}</ol><a className="official-link" href={path.url} target="_blank" rel="noreferrer">공식 페이지에서 시작하기 <ExternalLink size={14} aria-hidden="true" /></a><SourceRefs ids={path.sourceIds} sources={guide.sources} /></div>
+function Access({ guide }: { guide: ResolvedModelGuide }) {
+  return <div className="detail-access">{guide.access.map((path) => <article key={path.label}>
+    <h3>{path.label}</h3><p className="detail-meta">{path.platform} · {path.technicalLevel} · {path.freeAccess === "no" ? "유료 이용" : path.freeAccess === "limited" ? "무료 한도 있음" : path.freeAccess === "yes" ? path.kind === "local" ? "무료 다운로드 · 실행 비용 별도" : "무료 이용 가능" : "무료 여부 확인 필요"}</p>
+    <p><GlossaryText text={path.requirements} /></p>
+    {pricesFor(guide, path).length ? pricesFor(guide, path).map((p) => <div className="access-price" key={p.label}><b>{p.price}</b><p><GlossaryText text={`${p.unit}${p.note ? ` · ${p.note}` : ""}`} /></p><small>가격 확인 {p.observedAt}</small><Sources ids={p.sourceIds} sources={guide.sources} /></div>) : <p className="detail-meta">공식 가격·이용 한도는 아래 이용 페이지에서 확인하세요.</p>}
+    <ol>{path.steps.map((step) => <li key={step}><GlossaryText text={step} /></li>)}</ol>
+    <a className="detail-action" href={path.url} target="_blank" rel="noreferrer">{path.label} 이용 페이지 ↗</a>
+    <Sources ids={path.sourceIds} sources={guide.sources} />
   </article>)}</div>;
 }
 
-function Benchmarks({ entry, methodVersion }: { entry?: RankedEntry; methodVersion: string }) {
-  if (!entry) return <div className="guide-pending"><BookOpen aria-hidden="true" /><div><b>현재 공개 스냅샷에 평가값이 없습니다.</b><p>과거에 등장한 모델의 소개 페이지는 유지하지만, 결측값을 0점이나 임의 평균으로 채우지 않습니다.</p></div></div>;
-  return <><div className="benchmark-summary"><div><span>종합 순위</span><strong>#{entry.rank}</strong></div><div><span>종합 점수</span><strong>{entry.value.toFixed(1)}</strong></div><div><span>데이터 커버리지</span><strong>{Math.round((entry.coverage ?? 0) * 100)}%</strong></div><div><span>계산 방법</span><strong>{methodVersion.toUpperCase()}</strong></div></div><div className="benchmark-leaves">{Object.entries(entry.components).map(([label, component]) => <article key={label}><div><b>{label}</b><span>실효 가중치 {(component.weight * 100).toFixed(1)}%</span></div><div className="metric-chain"><span>원점수 <b>{component.raw.toFixed(1)}</b></span><i>→</i><span>정규화 <b>{component.normalized.toFixed(1)}</b> / 100</span></div><a href={component.source.url} target="_blank" rel="noreferrer">{component.source.label} <ExternalLink size={12} aria-hidden="true" /><small>관측일 {component.source.observedAt}</small></a></article>)}</div></>;
+function Evidence({ entry, slug, methodVersion }: { entry?: RankedEntry; slug: BoardSlug; methodVersion: string }) {
+  if (!entry) return <p>현재 이 분야의 평가 자료가 없습니다. 0점으로 처리하지 않습니다.</p>;
+  const keys = Object.values(entry.components).map((c) => c.metricKey).filter((k): k is string => Boolean(k));
+  const missing = slug === "overall" ? Object.keys(axisDefinitions).flatMap((axis) => missingMetrics(axis, keys)) : missingMetrics(slug, keys);
+  return <>
+    <p>평가 항목 확보율 {Math.round((entry.coverage ?? 0) * 100)}%. {slug === "overall" ? "평가가 있는 축의 기본 가중치 합입니다. 축 안의 일부 자료가 없어도 해당 축은 포함됩니다." : "해당 분야의 전체 평가 항목 중 확보한 항목 비율입니다."} 공식 소개 검증률이나 통계적 신뢰 수준을 뜻하지 않습니다.</p>
+    {methodVersion === "v2.1" && <p className="detail-meta">없는 자료: {missing.length ? missing.join(", ") : "없음"}. 남은 자료의 가중치를 다시 나눕니다. 모델마다 평가 구성이 다를 수 있어 작은 점수 차이를 확실한 우열로 해석하지 마세요.</p>}
+    <div className="evidence-scroll"><table className="evidence-table"><caption className="sr-only">{boardMeta[slug].label} 원점수와 평가 출처</caption><thead><tr><th scope="col">평가</th><th scope="col">원점수</th><th scope="col">관측일·출처</th></tr></thead><tbody>{Object.entries(entry.components).map(([label, c]) =>
+      <tr key={label}><th scope="row">{label}<small>{c.benchmarkVersion ? `버전 ${c.benchmarkVersion}` : "평가 버전 미기록"}</small></th><td>{c.raw.toLocaleString("ko-KR", { maximumFractionDigits: 3 })} <small>{c.unit ?? "원자료 단위"}</small></td><td><a href={c.source.url} target="_blank" rel="noreferrer">{c.source.label} ↗</a><small>{c.source.observedAt}</small></td></tr>)}</tbody></table></div>
+    <details><summary>0–100 환산 점수와 실제 반영 비율</summary><ul className="calculation-list">{Object.entries(entry.components).map(([label,c]) => <li key={label}><b>{label}</b>: 환산 {c.normalized.toFixed(2)} / 100 · 반영 {(c.weight * 100).toFixed(2)}%</li>)}</ul><Link href="/methodology">환산 기준·결측 자료 처리</Link></details>
+  </>;
 }
 
-export default async function ModelPage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
-  const page = await loadModelPage(slug);
+export default async function ModelPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ board?: string; return?: string }> }) {
+  const page = await loadModelPage((await params).slug);
   if (!page) notFound();
   const { data, model, guide, boardEntries } = page;
-  const glossaryItems = glossaryEntries(guide.glossaryTerms);
-  return <main className="shell subpage model-guide-page"><GlossaryNotes entries={glossaryItems}>
-    <SiteHeader date={data.snapshot.date} /><DataStatus data={data} />
-    <div className="model-breadcrumb"><Link href="/"><ArrowLeft size={14} aria-hidden="true" /> 리더보드로 돌아가기</Link></div>
-    <section className="guide-hero"><div className="guide-hero-copy"><div className="guide-provider"><ProviderIcon provider={model.provider} /><span>{model.provider}</span><i>·</i><span>{guide.status === "published" ? "검증된 안내" : "정보 확인 중"}</span></div><h1>{guide.officialName}</h1><p className="guide-summary"><GlossaryText text={guide.summary} /></p><div className="guide-meta"><span>{guide.modelType}</span><span>출시 {guide.releaseDate ?? model.releaseDate ?? "공식 확인 중"}</span><span>버전 {model.version}</span></div>{guide.configurationNote && <p className="configuration-note"><Sparkles size={15} aria-hidden="true" /><span><GlossaryText text={guide.configurationNote} /></span></p>}</div><aside className="guide-rank"><span>현재 종합 순위</span><strong>{boardEntries.overall ? `#${boardEntries.overall.rank}` : "—"}</strong><p>{boardEntries.overall ? `${boardEntries.overall.value.toFixed(1)}점 · ${data.snapshot.date}` : "현재 순위 없음"}</p><Link href="#benchmarks">평가 근거 보기 ↓</Link></aside></section>
-    <nav className="guide-jump" aria-label="모델 가이드 목차"><a href="#about">소개</a><a href="#use-cases">활용</a><a href="#how-to-use">사용 방법</a><a href="#pricing">가격</a><a href="#considerations">장단점</a>{guide.openWeights && <a href="#open-weights">직접 실행</a>}<a href="#benchmarks">평가 근거</a></nav>
-    <div className="guide-layout"><div className="guide-content">
-      <section id="about" className="guide-section"><SectionTitle title="이 AI는 무엇인가요?" /><p className="guide-introduction"><GlossaryText text={guide.introduction} /></p><div className="capability-list">{guide.capabilities.map((item) => <span key={item}><CheckCircle2 size={14} aria-hidden="true" /><GlossaryText text={item} /></span>)}</div></section>
-      <section id="use-cases" className="guide-section"><SectionTitle title="어떤 작업에 사용할 수 있나요?" /><div className="guide-list">{guide.useCases.length ? guide.useCases.map((item) => <article key={item.title}><h3>{item.title}</h3><p><GlossaryText text={item.description} /></p><SourceRefs ids={item.sourceIds} sources={guide.sources} /></article>) : <div className="guide-pending"><AlertTriangle aria-hidden="true" /><div><b>활용 사례 확인 중</b><p>검증된 공식 자료가 확보되면 공개합니다.</p></div></div>}</div></section>
-      <section id="how-to-use" className="guide-section"><SectionTitle title="어디에서, 어떻게 사용하나요?" /><AccessGuide guide={guide} /></section>
-      <section id="pricing" className="guide-section"><SectionTitle title="무료인가요? 얼마인가요?" />{guide.prices.length ? <div className="price-list">{guide.prices.map((item) => <article key={`${item.label}-${item.billingType}`}><div><CircleDollarSign aria-hidden="true" /><span><b>{item.label}</b><small>{item.billingType === "api" ? "API 종량제" : item.billingType === "subscription" ? "서비스 구독" : item.billingType === "open-weights" ? "오픈 웨이트" : "외부 제공"}</small></span></div><strong>{item.price}</strong><p><GlossaryText text={`${item.unit}${item.note ? ` · ${item.note}` : ""}`} /></p><small>확인일 {item.observedAt}</small><SourceRefs ids={item.sourceIds} sources={guide.sources} /></article>)}</div> : <div className="guide-pending"><AlertTriangle aria-hidden="true" /><div><b>공식 가격 확인 필요</b><p>가격이 검증되기 전까지 임의의 금액을 표시하지 않습니다.</p></div></div>}</section>
-      <section id="considerations" className="guide-section"><SectionTitle title="장점과 알아둘 점" /><div className="pros-cons"><div><h3><CheckCircle2 aria-hidden="true" />장점</h3>{guide.strengths.map((item) => <article key={item.title}><b>{item.title}</b><p><GlossaryText text={item.description} /></p><SourceRefs ids={item.sourceIds} sources={guide.sources} /></article>)}</div><div><h3><AlertTriangle aria-hidden="true" />알아둘 점</h3>{guide.cautions.map((item) => <article key={item.title}><b>{item.title}</b><p><GlossaryText text={item.description} /></p><SourceRefs ids={item.sourceIds} sources={guide.sources} /></article>)}</div></div></section>
-      {guide.openWeights && <section id="open-weights" className="guide-section"><SectionTitle title="직접 내려받아 실행하려면" /><div className="open-weight-intro"><ShieldCheck aria-hidden="true" /><div><b>{guide.openWeights.license}</b><p><GlossaryText text={guide.openWeights.meaning} /></p><a href={guide.openWeights.licenseUrl} target="_blank" rel="noreferrer">라이선스 원문 <ExternalLink size={13} /></a></div></div><dl className="hardware-grid"><div><dt>모델 크기</dt><dd><GlossaryText text={guide.openWeights.parameterScale} /></dd></div><div><dt>정밀도</dt><dd><GlossaryText text={guide.openWeights.precisions} /></dd></div><div><dt>가중치 메모리</dt><dd><GlossaryText text={guide.openWeights.estimatedWeightMemory} /></dd></div><div><dt>실행 중 추가 메모리</dt><dd><GlossaryText text={guide.openWeights.runtimeMemoryNote} /></dd></div><div><dt>CPU와 GPU</dt><dd><GlossaryText text={guide.openWeights.cpuGpuNote} /></dd></div></dl><ol className="local-steps">{guide.openWeights.steps.map((step) => <li key={step}><GlossaryText text={step} /></li>)}</ol><div className="tool-links"><a href={guide.openWeights.downloadUrl} target="_blank" rel="noreferrer"><Download size={14} />공식 가중치</a>{guide.openWeights.tools.map((tool) => <a key={tool.name} href={tool.url} target="_blank" rel="noreferrer">{tool.name}<ExternalLink size={12} /></a>)}</div></section>}
-      <section id="benchmarks" className="guide-section"><SectionTitle title="벤치마크 및 평가 근거" /><div className="rank-pills">{Object.entries(boardEntries).map(([key, entry]) => <span key={key}><small>{boardLabels[key as keyof typeof boardLabels]}</small><b>{entry ? `#${entry.rank} · ${entry.value.toFixed(1)}` : "평가 대기"}</b></span>)}</div><Benchmarks entry={boardEntries.overall} methodVersion={data.snapshot.methodVersion} /></section>
-      <section id="references" className="guide-section references-section"><SectionTitle title="참고 자료와 확인일" />{guide.sources.length ? <ol>{guide.sources.map((item, index) => <li id={`source-${item.id}`} key={item.id}><span>{index + 1}</span><div><b>{item.label}</b><small>{item.kind} · 확인일 {item.verifiedAt}</small></div><a href={item.url} target="_blank" rel="noreferrer">원문 <ExternalLink size={12} /></a></li>)}</ol> : <div className="guide-pending"><AlertTriangle aria-hidden="true" /><div><b>검증 자료 수집 중</b><p>현재는 리더보드의 모델 정보만 확인됐습니다.</p></div></div>}</section>
-    </div></div>
+  const query = await searchParams;
+  const active = boardSlug(query.board);
+  const setting = evaluationSetting(model.name);
+  const pending = guide.status !== "published";
+  return <main className="shell subpage model-detail"><GlossaryNotes entries={glossaryEntries(guide.glossaryTerms)}>
+    <SiteHeader date={data.snapshot.date} />{data.health.stale && <DataStatus data={data} />}
+    <Link className="detail-back" href={safeReturn(query.return)}>← 리더보드로 돌아가기</Link>
+    <header className="detail-summary"><p className="detail-provider"><ProviderIcon provider={model.provider} />{model.provider}</p><h1>{pending ? displayName(model.name) : guide.officialName}</h1>
+      {!pending && <p><GlossaryText text={guide.summary} /></p>}
+      <p className="detail-meta">{!pending && guide.releaseDate ? `출시 ${guide.releaseDate} · ` : ""}평가에 등록된 컨텍스트 {contextText(model.context)}</p>
+      {setting && <p className="detail-meta">평가 설정: {setting}</p>}
+      {guide.configurationNote && !pending && <details><summary>제품명과 평가 설정의 차이</summary><p><GlossaryText text={guide.configurationNote} /></p><p>평가용 컨텍스트와 실제 앱·API 이용 한도는 다를 수 있습니다.</p></details>}
+    </header>
+    <section className="detail-section active-result"><h2>{boardMeta[active].label} 평가</h2>{boardEntries[active] ? <p><strong>#{boardEntries[active]!.rank} · {metricText(boardEntries[active]!, active, data.snapshot.methodVersion)}</strong><span> · {data.snapshot.date} · {data.snapshot.methodVersion}</span></p> : <p>이 분야의 평가 자료가 없습니다.</p>}{active !== "overall" && boardEntries.overall && <p className="detail-meta">종합 지수는 #{boardEntries.overall.rank} · {boardEntries.overall.value.toFixed(1)}점 (능력·비용·속도 합산)입니다.</p>}<a href="#benchmarks">점수·출처 보기 ↓</a></section>
+    {pending ? <section className="detail-section pending-notice"><h2>공식 소개·이용 정보 확인 중</h2><p>현재 확인된 정보는 외부 평가에 등록된 이름, 개발사와 평가값입니다. 공식 사용 경로·가격·기능은 아직 검증하지 않았습니다. 평가에 등재됐다고 공식 앱에서 제공된다는 뜻은 아닙니다.</p></section> : <>
+      {guide.useCases.length > 0 && <section className="detail-section"><h2>어떤 작업에 사용할 수 있나요?</h2><ul className="detail-list">{guide.useCases.map((item) => <li key={item.title}><b>{item.title}</b><p><GlossaryText text={item.description} /></p><Sources ids={item.sourceIds} sources={guide.sources} /></li>)}</ul></section>}
+      <section className="detail-section" id="how-to-use"><h2>어디에서, 어떻게 사용하나요? 비용은?</h2>{guide.access.length ? <Access guide={guide} /> : <p>공식 사용 경로와 가격을 확인하고 있습니다.</p>}</section>
+      {guide.cautions.length > 0 && <section className="detail-section"><h2>알아둘 점</h2><ul className="detail-list">{guide.cautions.map((item) => <li key={item.title}><b>{item.title}</b><p><GlossaryText text={item.description} /></p><Sources ids={item.sourceIds} sources={guide.sources} /></li>)}</ul></section>}
+      {guide.openWeights && <section className="detail-section"><h2>직접 내려받아 실행하려면</h2><p><GlossaryText text={guide.openWeights.meaning} /></p><p><b>{guide.openWeights.license}</b></p><a className="detail-action" href={guide.openWeights.licenseUrl} target="_blank" rel="noreferrer">라이선스 원문 ↗</a><details><summary>서버 준비·메모리·설치 방법</summary><dl className="local-specs">{[
+        ["모델 크기",guide.openWeights.parameterScale],["정밀도",guide.openWeights.precisions],["추정 가중치 메모리",guide.openWeights.estimatedWeightMemory],["실행 중 추가 메모리",guide.openWeights.runtimeMemoryNote],["CPU와 GPU",guide.openWeights.cpuGpuNote],
+      ].map(([label,text]) => <div key={label}><dt>{label}</dt><dd><GlossaryText text={text} /></dd></div>)}</dl><ol>{guide.openWeights.steps.map((step) => <li key={step}><GlossaryText text={step} /></li>)}</ol><a className="detail-action" href={guide.openWeights.downloadUrl} target="_blank" rel="noreferrer">공식 가중치 ↗</a>{guide.openWeights.tools.map((tool) => <a className="detail-action" key={tool.name} href={tool.url} target="_blank" rel="noreferrer">{tool.name} 설치 문서 ↗</a>)}<Sources ids={guide.openWeights.sourceIds} sources={guide.sources} /></details></section>}
+      <section className="detail-section"><h2>용어 풀이</h2><GlossaryTerms /></section>
+    </>}
+    <section className="detail-section" id="benchmarks"><h2>벤치마크와 평가 근거</h2><p className="detail-meta">아래 관측일은 원자료의 날짜입니다. 상단 순위 날짜·소개 확인일과 다를 수 있습니다.</p><Evidence entry={boardEntries[active]} slug={active} methodVersion={data.snapshot.methodVersion} />
+      {boardOrder.filter((slug) => slug !== active).map((slug) => <details key={slug}><summary>{boardMeta[slug].label}{boardEntries[slug] ? ` · #${boardEntries[slug]!.rank} · ${metricText(boardEntries[slug]!, slug, data.snapshot.methodVersion)}` : " · 자료 없음"}</summary><Evidence entry={boardEntries[slug]} slug={slug} methodVersion={data.snapshot.methodVersion} /></details>)}
+    </section>
+    {!pending && <section className="detail-section" id="references"><h2>참고 자료</h2><ul className="reference-list">{guide.sources.map((source) => <li key={source.id}><a href={source.url} target="_blank" rel="noreferrer">{source.label} ↗</a><small>{source.kind} · 확인 {source.verifiedAt}</small></li>)}</ul><p className="detail-meta">소개 확인 {guide.lastVerifiedAt}. 요금제는 수동 검증하며 실시간으로 갱신하지 않습니다.</p></section>}
   </GlossaryNotes></main>;
 }
