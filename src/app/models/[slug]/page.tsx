@@ -15,7 +15,7 @@ import { modelGuideFamilies, modelVersionGuides, resolveModelGuide } from "@/lib
 import type { GuideSource, ResolvedModelGuide } from "@/lib/model-guide-types";
 import { loadPublicData } from "@/lib/public-data";
 import { pricesFor } from "@/lib/guide-presentation";
-import { boardMeta, boardOrder } from "@/lib/board-meta";
+import { boardMetaFor, boardOrder } from "@/lib/board-meta";
 import { boardSlug, contextText, displayName, evaluationSetting, metricText, safeReturn } from "@/lib/presentation";
 import { axisDefinitions, missingMetrics } from "@/lib/scoring-method";
 import type { BoardSlug, RankedEntry } from "@/lib/types";
@@ -76,7 +76,7 @@ function Evidence({ entry, slug, methodVersion }: { entry?: RankedEntry; slug: B
   return <>
     <p>평가 항목 확보율 {Math.round((entry.coverage ?? 0) * 100)}%. {slug === "overall" ? "평가가 있는 축의 기본 가중치 합입니다. 축 안의 일부 자료가 없어도 해당 축은 포함됩니다." : "해당 분야의 전체 평가 항목 중 확보한 항목 비율입니다."} 공식 소개 검증률이나 통계적 신뢰 수준을 뜻하지 않습니다.</p>
     {methodVersion === "v2.1" && <p className="detail-meta">없는 자료: {missing.length ? missing.join(", ") : "없음"}. 남은 자료의 가중치를 다시 나눕니다. 모델마다 평가 구성이 다를 수 있어 작은 점수 차이를 확실한 우열로 해석하지 마세요.</p>}
-    <div className="evidence-scroll"><table className="evidence-table"><caption className="sr-only">{boardMeta[slug].label} 원점수와 평가 출처</caption><thead><tr><th scope="col">평가</th><th scope="col">원점수</th><th scope="col">관측일·출처</th></tr></thead><tbody>{Object.entries(entry.components).map(([label, c]) =>
+    <div className="evidence-scroll"><table className="evidence-table"><caption className="sr-only">{boardMetaFor(methodVersion)[slug].label} 원점수와 평가 출처</caption><thead><tr><th scope="col">평가</th><th scope="col">원점수</th><th scope="col">관측일·출처</th></tr></thead><tbody>{Object.entries(entry.components).map(([label, c]) =>
       <tr key={label}><th scope="row">{label}<small>{c.benchmarkVersion ? `버전 ${c.benchmarkVersion}` : "평가 버전 미기록"}</small></th><td>{c.raw.toLocaleString("ko-KR", { maximumFractionDigits: 3 })} <small>{c.unit ?? "원자료 단위"}</small></td><td><a href={c.source.url} target="_blank" rel="noreferrer">{c.source.label} ↗</a><small>{c.source.observedAt}</small></td></tr>)}</tbody></table></div>
     <details><summary>0–100 환산 점수와 실제 반영 비율</summary><ul className="calculation-list">{Object.entries(entry.components).map(([label,c]) => <li key={label}><b>{label}</b>: 환산 {c.normalized.toFixed(2)} / 100 · 반영 {(c.weight * 100).toFixed(2)}%</li>)}</ul><Link href="/methodology">환산 기준·결측 자료 처리</Link></details>
   </>;
@@ -99,7 +99,7 @@ export default async function ModelPage({ params, searchParams }: { params: Prom
       {setting && <p className="detail-meta">평가 설정: {setting}</p>}
       {!pending && (guide.configurationNote || guide.contextTokens) && <details><summary>제품명·평가 설정·입력 한도</summary>{guide.configurationNote && <p><GlossaryText text={guide.configurationNote} /></p>}{guide.contextTokens && <p>공식 안내의 모델 컨텍스트: {contextText(guide.contextTokens)}. 위의 {contextText(model.context)}는 외부 평가에 등록된 값입니다.<Sources ids={guide.sources.filter((s) => s.kind === "documentation").map((s) => s.id)} sources={guide.sources} /></p>}<p>실제 앱·API 이용 한도는 제품과 요금제에 따라 다를 수 있습니다.</p></details>}
     </header>
-    <section className="detail-section active-result"><h2>{boardMeta[active].label} 평가</h2>{boardEntries[active] ? <p><strong>#{boardEntries[active]!.rank} · {metricText(boardEntries[active]!, active, data.snapshot.methodVersion)}</strong><span> · {data.snapshot.date} · {data.snapshot.methodVersion}</span></p> : <p>이 분야의 평가 자료가 없습니다.</p>}{active !== "overall" && boardEntries.overall && <p className="detail-meta">종합 지수는 #{boardEntries.overall.rank} · {boardEntries.overall.value.toFixed(1)}점 (능력·비용·속도 합산)입니다.</p>}<a href="#benchmarks">점수·출처 보기 ↓</a></section>
+    <section className="detail-section active-result"><h2>{data.snapshot.boards[active].label} 평가</h2>{boardEntries[active] ? <p><strong>#{boardEntries[active]!.rank} · {metricText(boardEntries[active]!, active, data.snapshot.methodVersion)}</strong><span> · {data.snapshot.date} · {data.snapshot.methodVersion}</span></p> : <p>이 분야의 평가 자료가 없습니다.</p>}{active !== "overall" && boardEntries.overall && <p className="detail-meta">종합 지수는 #{boardEntries.overall.rank} · {boardEntries.overall.value.toFixed(1)}점 ({data.snapshot.methodVersion.startsWith("v1") ? "당시 능력 평가 합산" : "능력·비용·속도 합산"})입니다.</p>}<a href="#benchmarks">점수·출처 보기 ↓</a></section>
     {pending ? <section className="detail-section pending-notice"><h2>공식 소개·이용 정보 확인 중</h2><p>현재 확인된 정보는 외부 평가에 등록된 이름, 개발사와 평가값입니다. 공식 사용 경로·가격·기능은 아직 검증하지 않았습니다. 평가에 등재됐다고 공식 앱에서 제공된다는 뜻은 아닙니다.</p></section> : <>
       {guide.useCases.length > 0 && <section className="detail-section"><h2>어떤 작업에 사용할 수 있나요?</h2><ul className="detail-list">{guide.useCases.map((item) => <li key={item.title}><b>{item.title}</b><p><GlossaryText text={item.description} /></p><Sources ids={item.sourceIds} sources={guide.sources} /></li>)}</ul></section>}
       <section className="detail-section" id="how-to-use"><h2>어디에서, 어떻게 사용하나요? 비용은?</h2>{guide.access.length ? <Access guide={guide} /> : <p>공식 사용 경로와 가격을 확인하고 있습니다.</p>}</section>
@@ -110,7 +110,7 @@ export default async function ModelPage({ params, searchParams }: { params: Prom
       <section className="detail-section"><h2>용어 풀이</h2><GlossaryTerms /></section>
     </>}
     <section className="detail-section" id="benchmarks"><h2>벤치마크와 평가 근거</h2><p className="detail-meta">{data.snapshot.methodVersion === "v2.1" ? "아래 관측일은 원자료를 수집한 날짜(UTC)입니다. 실제 평가 시행일은 원본이 제공하는 경우에만 알 수 있습니다." : "아래 관측일은 당시 원자료에 기록된 날짜입니다."} 순위의 KST 기준 날짜·소개 확인일과 다를 수 있습니다.</p><Evidence entry={boardEntries[active]} slug={active} methodVersion={data.snapshot.methodVersion} />
-      {boardOrder.filter((slug) => slug !== active).map((slug) => <details key={slug}><summary>{boardMeta[slug].label}{boardEntries[slug] ? ` · #${boardEntries[slug]!.rank} · ${metricText(boardEntries[slug]!, slug, data.snapshot.methodVersion)}` : " · 자료 없음"}</summary><Evidence entry={boardEntries[slug]} slug={slug} methodVersion={data.snapshot.methodVersion} /></details>)}
+      {boardOrder.filter((slug) => slug !== active).map((slug) => <details key={slug}><summary>{data.snapshot.boards[slug].label}{boardEntries[slug] ? ` · #${boardEntries[slug]!.rank} · ${metricText(boardEntries[slug]!, slug, data.snapshot.methodVersion)}` : " · 자료 없음"}</summary><Evidence entry={boardEntries[slug]} slug={slug} methodVersion={data.snapshot.methodVersion} /></details>)}
     </section>
     {!pending && <section className="detail-section" id="references"><h2>참고 자료</h2><ul className="reference-list">{guide.sources.map((source) => <li key={source.id}><a href={source.url} target="_blank" rel="noreferrer">{source.label} ↗</a><small>{source.kind} · 확인 {source.verifiedAt}</small></li>)}</ul><p className="detail-meta">소개 확인 {guide.lastVerifiedAt}. 요금제는 수동 검증하며 실시간으로 갱신하지 않습니다.</p></section>}
   </GlossaryNotes></main>;

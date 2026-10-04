@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { boardSlug, contextText, displayName, leaderboardUrl, metricText, safeReturn, toggleComparison } from "../src/lib/presentation";
+import { boardSlug, contextText, displayName, leaderboardUrl, metricText, metricHeading, safeReturn, toggleComparison } from "../src/lib/presentation";
 import { axisDefinitions, missingMetrics, normalizedValue } from "../src/lib/scoring-method";
 import { resolveModelGuide } from "../src/lib/model-guides";
 import type { RankedEntry } from "../src/lib/types";
 import { pricesFor } from "../src/lib/guide-presentation";
+import { boardMetaFor } from "../src/lib/board-meta";
 describe("audit regressions", () => {
   it("does not silently replace either selected model on a third selection", () => {
     expect(toggleComparison(["a","b"],"c")).toEqual({selected:["a","b"],error:expect.any(String)});
@@ -23,7 +24,11 @@ describe("audit regressions", () => {
     const entry = { value:95, price:.4, speed:100 } as RankedEntry;
     expect(metricText(entry,"value")).toBe("$0.40");
     expect(metricText({value:95} as RankedEntry,"value")).toBe("자료 없음");
-    expect(metricText(entry,"value","v1")).toBe("자료 없음");
+    expect(metricText(entry,"value","v1")).toBe("$0.40"); // v1 price is the explicitly labeled blended API rate
+    expect(metricHeading("value","v1")).toBe("API 요금 / 100만 토큰");
+    expect(boardMetaFor("v1").overall.description).toContain("비용과 속도는 포함하지 않습니다");
+    expect(boardMetaFor("v1").value.label).toBe("API 가격 (v1)");
+    expect(boardMetaFor("v2.1").value.label).toBe("작업 비용");
     expect(metricText(entry,"speed")).toBe("100 토큰/초");
   });
   it("matches v2.1 fixed anchors and missing-data examples", () => {

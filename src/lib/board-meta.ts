@@ -8,3 +8,13 @@ export const boardMeta: Record<BoardSlug, Pick<Board, "label" | "description" | 
   speed: { label: "속도", description: "관측된 중앙 출력 속도를 고정 기준으로 정규화합니다.", kind: "score" },
   korean: { label: "한국어", description: "한국어 평가 자료가 있는 모델만 표시합니다.", kind: "score" },
 };
+
+export function boardMetaFor(version: string): typeof boardMeta {
+  if (!version.startsWith("v1")) return boardMeta;
+  return {
+    ...boardMeta,
+    overall: { ...boardMeta.overall, description: "v1 기준 자료: GPQA 40%·SWE-bench 40%·AIME 20%의 능력 평가를 합산합니다. 비용과 속도는 포함하지 않습니다." },
+    coding: { ...boardMeta.coding, description: "v1 기준 자료: SWE-bench Verified를 고정 기준 20–85%로 0–100 환산합니다." },
+    value: { ...boardMeta.value, label: "API 가격 (v1)", description: "v1 기준 자료: 입력 75%·출력 25%로 섞은 API 요금(USD / 100만 토큰)입니다. 현재 AA 평가 작업 비용과 비교할 수 없습니다." },
+  };
+}

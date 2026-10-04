@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { boardOrder, boardMeta } from "@/lib/board-meta";
+import { boardOrder } from "@/lib/board-meta";
 import { boardSlug, contextText, displayName, metricText } from "@/lib/presentation";
 import type { Snapshot, Model } from "@/lib/types";
 import type { ResolvedModelGuide } from "@/lib/model-guide-types";
@@ -28,7 +28,7 @@ export function ModelComparison({ snapshot, models, guides }: { snapshot: Snapsh
     return (active === "overall" ? Object.keys(axisDefinitions).flatMap((a) => missingMetrics(a,present)) : missingMetrics(active,present)).join(", ") || "없음";
   };
   const rows: Array<[string,(m: Model) => string]> = [
-    [`${boardMeta[active].label} 순위·값`, (m) => { const e=entryFor(m); return e ? `#${e.rank} · ${metricText(e,active,snapshot.methodVersion)}` : "자료 없음"; }],
+    [`${snapshot.boards[active].label} 순위·값`, (m) => { const e=entryFor(m); return e ? `#${e.rank} · ${metricText(e,active,snapshot.methodVersion)}` : "자료 없음"; }],
     ["평가 작업당 비용 (USD)", (m) => { const e=entryFor(m,"overall"); return e?.price === undefined || snapshot.methodVersion !== "v2.1" ? "자료 없음" : `$${e.price.toFixed(2)}`; }],
     ["출력 속도 (토큰/초)", (m) => entryFor(m,"overall")?.speed?.toFixed(1) ?? "자료 없음"],
     ["첫 응답 지연 (초)", (m) => entryFor(m,"overall")?.latency?.toFixed(2) ?? "자료 없음"],
@@ -42,9 +42,9 @@ export function ModelComparison({ snapshot, models, guides }: { snapshot: Snapsh
   return <>
     {example && <p className="comparison-notice">예시로 현재 종합 순위의 첫 두 모델을 선택했습니다. A와 B를 모두 바꿀 수 있습니다.</p>}
     <div className="comparison-pickers">{[0,1].map((index) => <fieldset key={index}><legend>모델 {index === 0 ? "A" : "B"}</legend><label>이름·개발사로 찾기<input type="search" value={queries[index]} onChange={(e) => setQueries((q) => q.map((value,i) => i === index ? e.target.value : value))} /></label><label>모델 선택<select value={compared[index]?.slug ?? ""} onChange={(e) => update(index,e.target.value)}><option value="">모델 선택</option>{models.filter((m) => m.slug === slugs[index] || `${m.name} ${m.provider}`.toLowerCase().includes(queries[index].toLowerCase().trim())).map((m) => <option key={m.slug} value={m.slug}>{displayName(m.name)} · {m.provider}</option>)}</select></label></fieldset>)}</div>
-    <label className="comparison-field">비교 분야<select value={active} onChange={(e) => { const query = new URLSearchParams(params.toString()); query.set("board", e.target.value); window.history.replaceState(null,"",`/compare?${query}`); }}>{boardOrder.map((b) => <option key={b} value={b}>{boardMeta[b].label}</option>)}</select></label>
+    <label className="comparison-field">비교 분야<select value={active} onChange={(e) => { const query = new URLSearchParams(params.toString()); query.set("board", e.target.value); window.history.replaceState(null,"",`/compare?${query}`); }}>{boardOrder.map((b) => <option key={b} value={b}>{snapshot.boards[b].label}</option>)}</select></label>
     {!valid ? <p role="alert">서로 다른 공개 모델 두 개를 선택하세요. 현재 목록에 없는 모델은 비교할 수 없습니다.</p> : <>
-      <p>{boardMeta[active].description}</p>
+      <p>{snapshot.boards[active].description}</p>
       <table className="comparison-table"><caption className="sr-only">모델 A와 B 비교 · {snapshot.date}</caption><thead><tr><th scope="col">항목</th>{compared.map((m) => <th scope="col" key={m!.slug}><Link href={`/models/${m!.slug}?board=${active}`}>{displayName(m!.name)}</Link></th>)}</tr></thead><tbody>
         {rows.map(([label,fn]) => <tr key={label}><th scope="row">{label}</th>{compared.map((m) => <td key={m!.slug}>{fn(m!)}</td>)}</tr>)}
         <tr><th scope="row">평가 구성·출처</th>{compared.map((m) => <td key={m!.slug}><ul>{Object.entries(entryFor(m!)?.components ?? {}).map(([label,c]) => <li key={label}><a href={c.source.url} target="_blank" rel="noreferrer">{label} ↗</a><small>{c.source.observedAt} · 반영 {(c.weight*100).toFixed(1)}%</small></li>)}</ul></td>)}</tr>

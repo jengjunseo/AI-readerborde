@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { boardScores, models, modelVersions, providers, rankingEntries, rankingSnapshots } from "@/db/schema";
-import { boardMeta, boardOrder } from "./board-meta";
+import { boardMetaFor, boardOrder } from "./board-meta";
 import type { Board, BoardSlug, Snapshot } from "./types";
 
 export async function loadHistoricalSnapshot(date: string): Promise<Snapshot | undefined> {
@@ -18,7 +18,7 @@ export async function loadHistoricalSnapshot(date: string): Promise<Snapshot | u
       const source = { label: "historical observation", url: "#", observedAt: date, tier: "T2" as const };
       return { model: { slug: row.modelSlug, name: row.modelName, provider: row.provider, version: row.version, context: Number(row.context), lifecycle: row.lifecycle, inputPrice: 0, outputPrice: 0, priceSource: source, metrics: {} }, rank: Number(row.rank), value: Number(row.value), previousRank: row.previousRank === null ? undefined : Number(row.previousRank), isNew: row.isNew, movementReason: row.movementReason ?? undefined, coverage: Number(row.coverage), price: breakdown.cost_per_task?.raw, speed: breakdown.output_speed?.raw, components: Object.fromEntries(Object.entries(breakdown).filter(([key, leaf]) => !key.startsWith("axis:") && leaf.normalized !== undefined).map(([key, leaf]) => [leaf.benchmarkName ?? key, { metricKey: key, unit: leaf.unit, benchmarkVersion: leaf.benchmarkVersion, raw: Number(leaf.raw ?? 0), normalized: Number(leaf.normalized ?? 0), weight: Number(leaf.weight ?? 0), source: { label: leaf.sourceUrl ? new URL(leaf.sourceUrl).hostname : "source", url: leaf.sourceUrl ?? "#", observedAt: leaf.observedAt ?? date, tier: "T2" as const } }])) };
     }).sort((a, b) => a.rank - b.rank);
-    boards[slug] = { slug, ...boardMeta[slug], entries };
+    boards[slug] = { slug, ...boardMetaFor(snapshot?.methodVersion ?? overall.methodVersion)[slug], entries };
   }
   return { date, previousDate: date, methodVersion: overall.methodVersion, inputHash: overall.inputHash, boards };
 }

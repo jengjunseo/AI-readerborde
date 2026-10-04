@@ -7,9 +7,9 @@ export function boardSlug(value?: string | null): BoardSlug {
 export const displayName = (name: string) => name.replace(/\s*\([^)]*\)\s*$/, "").trim();
 export const evaluationSetting = (name: string) => name.match(/\(([^)]*)\)\s*$/)?.[1];
 export const contextText = (tokens: number) => tokens > 0 ? `${(tokens / 10000).toLocaleString("ko-KR", { maximumFractionDigits: 2 })}만 토큰` : "확인 중";
-export const metricHeading = (slug: BoardSlug) => slug === "value" ? "평가 작업당 비용" : slug === "speed" ? "출력 속도" : "점수 / 100";
+export const metricHeading = (slug: BoardSlug, version = "v2.1") => slug === "value" ? version.startsWith("v1") ? "API 요금 / 100만 토큰" : "평가 작업당 비용" : slug === "speed" ? "출력 속도" : "점수 / 100";
 export function metricText(entry: RankedEntry, slug: BoardSlug, version = "v2.1") {
-  if (slug === "value") return version === "v2.1" && entry.price !== undefined ? `$${entry.price.toFixed(2)}` : "자료 없음";
+  if (slug === "value") return (version === "v2.1" || version.startsWith("v1")) && entry.price !== undefined ? `$${entry.price.toFixed(2)}` : "자료 없음";
   if (slug === "speed") return entry.speed === undefined ? "자료 없음" : `${Math.round(entry.speed)} 토큰/초`;
   return entry.value.toFixed(1);
 }

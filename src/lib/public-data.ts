@@ -4,7 +4,7 @@ import { getDb, type AppDb } from "@/db/client";
 import { boardScores, models, modelVersions, pipelineRuns, providers, publishedPointers, rankingEntries, rankingSnapshots, rawObservations } from "@/db/schema";
 import { latestSnapshot } from "./catalog";
 import { curatedModels } from "./curated-data";
-import { boardMeta, boardOrder } from "./board-meta";
+import { boardMetaFor, boardOrder } from "./board-meta";
 import type { Board, BoardSlug, Model, RankedEntry, Snapshot, Source } from "./types";
 
 type BreakdownLeaf = { raw?: number; normalized?: number; weight?: number; sourceUrl?: string; observedAt?: string; benchmarkName?: string; benchmarkVersion?: string; unit?: string };
@@ -28,7 +28,7 @@ export type PublicData = { snapshot: Snapshot; source: "database" | "fallback"; 
 
 export function localizePublicSnapshot(snapshot: Snapshot): Snapshot {
   const boards = {} as Record<BoardSlug, Board>;
-  for (const slug of boardOrder) boards[slug] = { slug, ...boardMeta[slug], entries: snapshot.boards[slug]?.entries ?? [] };
+  for (const slug of boardOrder) boards[slug] = { slug, ...boardMetaFor(snapshot.methodVersion)[slug], entries: snapshot.boards[slug]?.entries ?? [] };
   return { ...snapshot, boards };
 }
 
@@ -54,7 +54,7 @@ export async function loadPublicSnapshotFromDb(db: AppDb): Promise<Snapshot | un
       const confidence: RankedEntry["confidence"] = Number(row.coverage) >= .8 ? "높음" : Number(row.coverage) >= .55 ? "보통" : "낮음";
       return { model, rank: Number(row.rank), value: Number(row.value), previousRank: row.previousRank === null ? undefined : Number(row.previousRank), isNew: row.isNew, movementReason: row.movementReason ?? undefined, coverage: Number(row.coverage), price: cost ? Number(cost.value) : undefined, speed: speed ? Number(speed.value) : undefined, latency: latency ? Number(latency.value) : undefined, confidence, components: Object.fromEntries(Object.entries(breakdown).filter(([key, leaf]) => !key.startsWith("axis:") && leaf.normalized !== undefined).map(([key, leaf]) => [leaf.benchmarkName ?? metricLabels[key] ?? key, { metricKey: key, unit: leaf.unit, benchmarkVersion: leaf.benchmarkVersion, raw: Number(leaf.raw ?? 0), normalized: Number(leaf.normalized ?? 0), weight: Number(leaf.weight ?? 0), source: sourceFor(leaf) }])) };
     }).sort((left, right) => left.rank - right.rank);
-    boards[slug] = { slug, ...boardMeta[slug], entries };
+    boards[slug] = { slug, ...boardMetaFor(snapshots.find((s) => s.boardSlug === slug)?.methodVersion ?? overallSnapshot.methodVersion)[slug], entries };
   }
   return { date: overallSnapshot.snapshotDate, previousDate: previous[0]?.date ?? overallSnapshot.snapshotDate, methodVersion: overallSnapshot.methodVersion, inputHash: overallSnapshot.inputHash, boards };
 }

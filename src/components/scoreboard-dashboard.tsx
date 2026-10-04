@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { boardMeta, boardOrder } from "@/lib/board-meta";
+import { boardOrder } from "@/lib/board-meta";
 import { boardSlug, displayName, evaluationSetting, leaderboardUrl, metricHeading, metricText, toggleComparison } from "@/lib/presentation";
 import type { PublicData } from "@/lib/public-data";
 import { ProviderIcon } from "./provider-icon";
@@ -23,7 +23,7 @@ export function ScoreboardDashboard({ data }: { data: PublicData }) {
   }
   return <>
     <nav className="ranking-tabs" aria-label="순위 분야">{boardOrder.map((slug) =>
-      <Link key={slug} href={leaderboardUrl(slug, query)} scroll={false} aria-current={active === slug ? "page" : undefined}>{boardMeta[slug].label}{slug === "korean" && !data.snapshot.boards.korean.entries.length ? " (준비 중)" : ""}</Link>
+      <Link key={slug} href={leaderboardUrl(slug, query)} scroll={false} aria-current={active === slug ? "page" : undefined}>{data.snapshot.boards[slug].label}{slug === "korean" && !data.snapshot.boards.korean.entries.length ? " (준비 중)" : ""}</Link>
     )}</nav>
     <section className="ranking-panel" aria-labelledby="ranking-title">
       <div className="ranking-heading"><h1 id="ranking-title">{board.label} 순위</h1><button type="button" aria-pressed={compareMode} onClick={() => { setCompareMode(!compareMode); setError(""); }}>{compareMode ? "비교 선택 닫기" : "두 모델 비교"}</button></div>
@@ -31,7 +31,7 @@ export function ScoreboardDashboard({ data }: { data: PublicData }) {
       <label className="search-field"><span>모델·개발사 검색</span><input type="search" value={query} placeholder="예: GPT, Claude, Google" onChange={(event) => window.history.replaceState(null, "", leaderboardUrl(active, event.target.value))} /></label>
       <p role="alert" className="selection-alert">{error}</p>
       {entries.length ? <table className="ranking-table"><caption className="sr-only">{board.label} 순위 · {data.snapshot.date}</caption>
-        <thead><tr>{compareMode && <th scope="col" className="selection-column">선택</th>}<th scope="col" className="rank-column">순위</th><th scope="col">모델</th><th scope="col" className="metric-column">{metricHeading(active)}</th></tr></thead>
+        <thead><tr>{compareMode && <th scope="col" className="selection-column">선택</th>}<th scope="col" className="rank-column">순위</th><th scope="col">모델</th><th scope="col" className="metric-column">{metricHeading(active, data.snapshot.methodVersion)}</th></tr></thead>
         <tbody>{entries.map((entry) => {
           const href = `/models/${entry.model.slug}?board=${active}&return=${encodeURIComponent(returnUrl)}`;
           const setting = evaluationSetting(entry.model.name);
