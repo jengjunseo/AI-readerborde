@@ -45,17 +45,41 @@ const percentMetrics: Array<[keyof AAModel, string, string, string]> = [
   ["mmmuPro", "multimodal", "MMMU-Pro", "1"],
 ];
 
-function parseModels(html: string): AAModel[] {
-  const token = '\\"models\\":[';
-  const candidates: number[] = [];
-  for (let index = html.indexOf(token); index >= 0; index = html.indexOf(token, index + token.length)) candidates.push(index);
-  const start = candidates.find((index) => html.slice(index, index + 2_000).includes("intelligenceIndex")) ?? -1;
-  if (start < 0) throw new Error("Artificial Analysis model payload not found");
-  const contentStart = start + token.length;
-  const end = html.indexOf('],\\"messages\\"', contentStart);
-  if (end < 0) throw new Error("Artificial Analysis model payload terminator not found");
-  const decoded = `[${html.slice(contentStart, end).replace(/\\\"/g, '"')}]`;
-  return z.array(modelSchema).parse(JSON.parse(decoded));
+export function parseModels(html: string): AAModel[] {
+  // Decode data, never execute the source's scripts. Flight can split a model
+  // object (or even a property name) across independently encoded chunks.
+  const chunks: string[] = [];
+  for (const script of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)) {
+    const call = script[1].match(/self\.__next_f\.push\((\[[\s\S]*\])\)\s*;?\s*$/);
+    if (!call) continue;
+    const chunk: unknown = JSON.parse(call[1]);
+    if (Array.isArray(chunk) && chunk[0] === 1 && typeof chunk[1] === "string") chunks.push(chunk[1]);
+  }
+  const decoded = chunks.join("");
+  for (const field of decoded.matchAll(/"(?:initialModels|models)"\s*:\s*\[/g)) {
+    const start = field.index + field[0].length - 1;
+    let depth = 0;
+    let quoted = false;
+    let escaped = false;
+    for (let index = start; index < decoded.length; index++) {
+      const char = decoded[index];
+      if (quoted) {
+        if (escaped) escaped = false;
+        else if (char === "\\") escaped = true;
+        else if (char === '"') quoted = false;
+      } else if (char === '"') quoted = true;
+      else if (char === "[") depth++;
+      else if (char === "]" && --depth === 0) {
+        const candidate: unknown = JSON.parse(decoded.slice(start, index + 1));
+        // Ignore unrelated model pickers; only accept the evaluation dataset.
+        if (Array.isArray(candidate) && candidate.some((row) => row && typeof row === "object" && "intelligenceIndex" in row)) {
+          return z.array(modelSchema).parse(candidate);
+        }
+        break;
+      }
+    }
+  }
+  throw new Error("Artificial Analysis model payload not found or incomplete");
 }
 
 function familySlug(slug: string) {
@@ -87,7 +111,7 @@ export const artificialAnalysisAdapter: SourceAdapter = {
   tier: "T2",
   homepageUrl: sourceUrl,
   termsUrl: "https://artificialanalysis.ai/terms-of-use",
-  adapterVersion: "2.0.0",
+  adapterVersion: "2.1.0",
   canCreateIdentity: true,
   async fetch(): Promise<AdapterResult> {
     const response = await fetch(sourceUrl, { headers: { "User-Agent": "AI-SCOREBOARD/2.0" }, next: { revalidate: 0 } });
