@@ -9,6 +9,7 @@ async function main() {
   const identities = source.records.filter((r) => r.kind === "model_meta");
   let leaves=0, matching=0, differences=0, entries=0;
   const drift: string[]=[];
+  const displayNameDifferences = new Map<string, { published: string; source: string }>();
   for(const board of boardOrder) {
     const response=await fetch(`${base}/api/v1/boards/${board}`);
     if(!response.ok) throw new Error(`${board}: HTTP ${response.status}`);
@@ -16,7 +17,11 @@ async function main() {
     for(const entry of data.entries) {
       entries++;
       const identity=identities.find((r) => r.modelSlug===entry.modelSlug);
-      if(!identity || identity.name.toLowerCase()!==entry.model.toLowerCase() || identity.provider!==entry.provider || identity.version!==entry.version) throw new Error(`Identity mismatch: ${entry.modelSlug}; published=${JSON.stringify({name:entry.model,provider:entry.provider,version:entry.version})}; currentSource=${JSON.stringify(identity)}`);
+      if(!identity || identity.provider!==entry.provider || identity.version!==entry.version) throw new Error(`Identity mismatch: ${entry.modelSlug}; published=${JSON.stringify({name:entry.model,provider:entry.provider,version:entry.version})}; currentSource=${JSON.stringify(identity)}`);
+      // Display labels can be shortened by the source without changing the
+      // canonical slug/provider/version. Report this separately from identity
+      // or numerical drift; never hide it by rewriting historical metadata.
+      if(identity.name.toLowerCase()!==entry.model.toLowerCase()) displayNameDifferences.set(entry.modelSlug,{published:entry.model,source:identity.name});
       let reproduced=0;
       for(const [key,leaf] of Object.entries(entry.breakdown) as Array<[string,{raw:number;normalized:number;weight:number;sourceUrl:string}]>) {
         if(key.startsWith("axis:")) continue;
@@ -30,7 +35,7 @@ async function main() {
       if(Math.abs(reproduced-Number(entry.value))>1e-7) throw new Error(`Score mismatch: ${entry.modelSlug}/${board}`);
     }
   }
-  console.log(JSON.stringify({base,sourceFingerprint:source.fingerprint,entries,leaves,matching,differences,drift,scoreReproduction:"passed"},null,2));
+  console.log(JSON.stringify({base,sourceFingerprint:source.fingerprint,entries,leaves,matching,differences,drift,displayNameDifferences:Object.fromEntries(displayNameDifferences),scoreReproduction:"passed"},null,2));
   if(differences) process.exitCode=2; // Drift is evidence, not permission to rewrite history.
 }
 main().catch((error)=>{console.error(error instanceof Error ? error.message : "verification failed");process.exitCode=1;});
