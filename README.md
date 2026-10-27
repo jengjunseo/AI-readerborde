@@ -35,3 +35,8 @@ The test suite uses PGlite, a real embedded PostgreSQL runtime, applies the chec
 The daily runner uses live Artificial Analysis observations plus the live OpenRouter catalog. OpenRouter-only records remain in the unmapped queue until explicitly approved; they cannot silently create a public model or alter ranking rows. The Korean board intentionally remains unranked until a sufficiently complete, independently traceable Korean evaluation source is connected.
 
 See [METHODOLOGY.md](./METHODOLOGY.md) for Method v2, coverage rules, and limitations.
+
+## Open work
+
+- [ ] Connect a sufficiently complete, independently traceable Korean evaluation source before ranking the Korean board; see [METHODOLOGY.md](./METHODOLOGY.md).
+- [ ] Verify production database, secrets, scheduled publication and rollback on the intended deployment before relying on live results.
