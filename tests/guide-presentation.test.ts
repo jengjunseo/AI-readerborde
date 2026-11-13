@@ -33,6 +33,7 @@ describe("readable model introductions", () => {
     expect(guide.baseGuideSlug).toBe("gpt-6-astra");
     expect(guide.slug).toBe("gpt-6-astra-high");
     expect(guide.status).toBe("published");
+    expect(guide.introduction).not.toContain("‘max’");
     expect(guide.configurationNote).toContain("GPT-6 Astra (High)");
     expect(guide.configurationNote).toContain("따로 확인");
     expect(resolveModelGuide({slug:"gpt-6-astra-high",name:"Different model (High)",provider:"OpenAI",version:"high"}).status).toBe("pending");

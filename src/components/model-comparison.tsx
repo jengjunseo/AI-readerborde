@@ -39,7 +39,7 @@ export function ModelComparison({ snapshot, models, guides }: { snapshot: Snapsh
     ["평가 항목 확보율", (m) => { const e=entryFor(m); return e?.coverage === undefined ? "자료 없음" : `${Math.round(e.coverage*100)}%`; }],
     ["없는 평가 자료", missingFor],
     ["공식 소개 검증", (m) => guides[m.slug]?.status === "published" ? `확인 ${guides[m.slug].lastVerifiedAt}` : "확인 중"],
-    ["앱·웹 이용", (m) => guides[m.slug]?.access.filter((p) => ["web","app"].includes(p.kind)).map((p) => `${p.label}: ${p.requirements}`).join(" / ") || "공식 이용 정보 확인 중"],
+    ["기반 모델의 앱·웹 이용", (m) => guides[m.slug]?.access.filter((p) => ["web","app"].includes(p.kind)).map((p) => `${p.label}: ${p.requirements}`).join(" / ") || "공식 이용 정보 확인 중"],
   ];
   return <>
     {example && <p className="comparison-notice">예시로 현재 종합 순위의 첫 두 조합을 선택했습니다. A와 B를 모두 바꿀 수 있습니다.</p>}
@@ -61,7 +61,7 @@ export function ModelComparison({ snapshot, models, guides }: { snapshot: Snapsh
         if(left===undefined || right===undefined) return null;
         return <p className="comparison-notice">A−B 차이 {(left-right).toFixed(2)}{active==="value" ? " USD/평가 작업" : active==="speed" ? " 토큰/초" : "점"}. 평가 구성·확보율이 다르면 직접적인 우열로 해석하기 어렵습니다.</p>;
       })()}
-      <p className="detail-meta">평가 작업 비용과 시간은 AA 평가 작업 기준이며 실제 사용자 업무의 비용·시간을 보장하지 않습니다. API 토큰 단가·앱 구독료와도 다릅니다. 확보율은 공식 정보 검증률이나 통계적 신뢰도가 아닙니다. 실제 이용 조건과 가격은 각 모델 상세에서 확인하세요.</p>
+      <p className="detail-meta">평가 작업 비용과 시간은 AA 평가 작업 기준이며 실제 사용자 업무의 비용·시간을 보장하지 않습니다. API 토큰 단가·앱 구독료와도 다릅니다. 확보율은 공식 정보 검증률이나 통계적 신뢰도가 아닙니다. 앱·웹 안내는 기반 모델에 관한 정보이며, 평가와 같은 추론 설정을 선택할 수 있는지는 별도 확인이 필요합니다. 실제 이용 조건과 가격은 각 모델 상세에서 확인하세요.</p>
     </>}
   </>;
 }

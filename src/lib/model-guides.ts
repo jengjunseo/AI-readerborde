@@ -49,7 +49,7 @@ const families: Record<string, ModelFamilyGuide> = {
   },
   openai: {
     key: "openai", officialName: "OpenAI GPT", provider: "OpenAI",
-    introduction: "OpenAI의 GPT 모델은 질문에 답하고, 문서를 분석하고, 코드를 작성하며, 연결된 도구를 사용하도록 설계된 인공지능입니다. 이 페이지의 ‘max’는 별도 제품명이 아니라 답을 만들 때 더 많은 추론 자원을 쓰도록 한 평가 설정입니다.",
+    introduction: "OpenAI의 GPT 모델은 질문에 답하고, 문서를 분석하고, 코드를 작성하며, 연결된 도구를 사용하도록 설계된 인공지능입니다. 모델명 뒤 괄호는 이번 평가에 사용한 설정을 뜻합니다. 같은 기반 모델이라도 설정에 따라 결과와 기다리는 시간, 처리 비용이 달라질 수 있으므로 자신이 하려는 작업에 맞춰 비교해 보세요.",
     useCases: [
       { title: "복잡한 질문과 자료 분석", description: "긴 문서와 이미지를 입력해 핵심을 정리하거나 여러 조건을 함께 검토할 수 있습니다.", sourceIds: ["openai-models"] },
       { title: "프로그램 개발", description: "코드 작성, 오류 수정, 저장소 단위 작업과 도구 호출에 사용할 수 있습니다.", sourceIds: ["openai-models"] },
@@ -69,7 +69,7 @@ const families: Record<string, ModelFamilyGuide> = {
   },
   anthropic: {
     key: "anthropic", officialName: "Claude", provider: "Anthropic",
-    introduction: "Claude는 Anthropic이 만든 인공지능 모델입니다. 글과 이미지를 이해하고, 문서 작업과 코딩, 여러 단계의 지식 업무를 수행할 수 있습니다. 리더보드의 Adaptive Reasoning·Max Effort·Default Fallback 표기는 모델명이 아니라 평가 때 사용한 추론 및 안전 라우팅 설정입니다.",
+    introduction: "Claude는 Anthropic이 만든 인공지능 모델입니다. 글과 이미지를 이해하고, 문서 작업과 코딩, 여러 단계의 지식 업무를 수행할 수 있습니다. 모델명 뒤 괄호에는 평가에 사용한 설정을 표시합니다. 같은 기반 모델의 다른 설정도 함께 비교하면서 결과뿐 아니라 처리 비용과 기다리는 시간을 살펴보세요.",
     useCases: [
       { title: "문서와 지식 업무", description: "긴 자료를 읽고 요약·비교하거나 구조화된 결과물을 만드는 작업에 사용할 수 있습니다.", sourceIds: ["anthropic-models"] },
       { title: "코딩과 에이전트 작업", description: "Claude Code나 API*에서 코드를 탐색하고 도구를 호출하는 여러 단계 작업에 사용할 수 있습니다.", sourceIds: ["anthropic-models"] },
