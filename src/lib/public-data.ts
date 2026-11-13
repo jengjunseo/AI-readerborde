@@ -46,13 +46,13 @@ export async function loadPublicSnapshotFromDb(db: AppDb): Promise<Snapshot | un
     const entries: RankedEntry[] = rows.filter((row) => row.boardSlug === slug).map((row) => {
       const breakdown = (row.breakdown ?? {}) as Record<string, BreakdownLeaf>;
       const specs = rawByModel.get(`${row.pipelineRunId}:${row.modelVersionId}`) ?? new Map();
-      const input = specs.get("input_price"); const output = specs.get("output_price"); const cost = specs.get("cost_per_task"); const speed = specs.get("output_speed"); const latency = specs.get("latency");
+      const input = specs.get("input_price"); const output = specs.get("output_price"); const cost = specs.get("cost_per_task"); const speed = specs.get("output_speed"); const latency = specs.get("latency"); const taskTime = specs.get("task_time");
       const model = fallbackModel(row.modelSlug, row.modelName, row.providerName, row.version, Number(row.contextLength), row.lifecycle);
       model.releaseDate = row.releaseDate ?? undefined;
       model.inputPrice = Number(input?.value ?? 0); model.outputPrice = Number(output?.value ?? 0);
       if (input) model.priceSource = { label: new URL(input.sourceUrl).hostname.replace(/^www\./, ""), url: input.sourceUrl, observedAt: input.observedAt, tier: "T2" };
       const confidence: RankedEntry["confidence"] = Number(row.coverage) >= .8 ? "높음" : Number(row.coverage) >= .55 ? "보통" : "낮음";
-      return { model, rank: Number(row.rank), value: Number(row.value), previousRank: row.previousRank === null ? undefined : Number(row.previousRank), isNew: row.isNew, movementReason: row.movementReason ?? undefined, coverage: Number(row.coverage), price: cost ? Number(cost.value) : undefined, speed: speed ? Number(speed.value) : undefined, latency: latency ? Number(latency.value) : undefined, confidence, components: Object.fromEntries(Object.entries(breakdown).filter(([key, leaf]) => !key.startsWith("axis:") && leaf.normalized !== undefined).map(([key, leaf]) => [leaf.benchmarkName ?? metricLabels[key] ?? key, { metricKey: key, unit: leaf.unit, benchmarkVersion: leaf.benchmarkVersion, raw: Number(leaf.raw ?? 0), normalized: Number(leaf.normalized ?? 0), weight: Number(leaf.weight ?? 0), source: sourceFor(leaf) }])) };
+      return { model, rank: Number(row.rank), value: Number(row.value), previousRank: row.previousRank === null ? undefined : Number(row.previousRank), isNew: row.isNew, movementReason: row.movementReason ?? undefined, coverage: Number(row.coverage), price: cost ? Number(cost.value) : undefined, speed: speed ? Number(speed.value) : undefined, latency: latency ? Number(latency.value) : undefined, taskTime: taskTime ? Number(taskTime.value) : undefined, taskTimeSource: taskTime ? { label: "Artificial Analysis", url: taskTime.sourceUrl, observedAt: taskTime.observedAt, tier: "T2" as const } : undefined, confidence, components: Object.fromEntries(Object.entries(breakdown).filter(([key, leaf]) => !key.startsWith("axis:") && leaf.normalized !== undefined).map(([key, leaf]) => [leaf.benchmarkName ?? metricLabels[key] ?? key, { metricKey: key, unit: leaf.unit, benchmarkVersion: leaf.benchmarkVersion, raw: Number(leaf.raw ?? 0), normalized: Number(leaf.normalized ?? 0), weight: Number(leaf.weight ?? 0), source: sourceFor(leaf) }])) };
     }).sort((left, right) => left.rank - right.rank);
     boards[slug] = { slug, ...boardMetaFor(snapshots.find((s) => s.boardSlug === slug)?.methodVersion ?? overallSnapshot.methodVersion)[slug], entries };
   }
@@ -85,4 +85,4 @@ export async function loadPublicData(): Promise<PublicData> {
   }
 }
 
-export const modelsFromSnapshot = (snapshot: Snapshot) => snapshot.boards.overall.entries.map((entry) => entry.model);
+export const modelsFromSnapshot = (snapshot: Snapshot) => [...new Map(boardOrder.flatMap((slug) => snapshot.boards[slug].entries).map((entry) => [entry.model.slug, entry.model])).values()];

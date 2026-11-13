@@ -14,6 +14,7 @@ const modelSchema = z.object({
   contextWindowTokens: maybeNumber,
   intelligenceIndex: maybeNumber,
   intelligenceIndexCostPerTask: maybeNumber,
+  intelligenceIndexTimePerTask: maybeNumber,
   medianOutputTokensPerSecond: maybeNumber,
   medianTimeToFirstTokenSeconds: maybeNumber,
   terminalBench40: maybeNumber,
@@ -108,27 +109,12 @@ export function parseModels(html: string): AAModel[] {
   throw new Error("Artificial Analysis model payload not found or incomplete");
 }
 
-function familySlug(slug: string) {
-  return slug.replace(/-(max|xhigh|high|medium|low)(?:-.*)?$/, "");
-}
-
 export function selectCurrent<T extends Pick<AAModel, "slug" | "deprecated" | "intelligenceIndex">>(models: T[]) {
-  const seen = new Set<string>();
-  const eligible = models
+  // A source evaluation ID is the selectable model + configuration, not a
+  // provider family. Never discard high/medium/low because max scored higher.
+  return models
     .filter((model) => !model.deprecated && model.intelligenceIndex != null)
-    .sort((left, right) => Number(right.intelligenceIndex) - Number(left.intelligenceIndex))
-    .filter((model) => {
-      const family = familySlug(model.slug);
-      if (seen.has(family)) return false;
-      seen.add(family);
-      return true;
-    });
-  const selected = eligible.slice(0, 16);
-  for (const slug of ["gpt-6-sol", "gpt-6-luna"]) {
-    const required = eligible.find((model) => familySlug(model.slug) === slug);
-    if (required && !selected.some((model) => model.slug === required.slug)) selected.push(required);
-  }
-  return selected;
+    .sort((left, right) => Number(right.intelligenceIndex) - Number(left.intelligenceIndex) || left.slug.localeCompare(right.slug));
 }
 
 export const artificialAnalysisAdapter: SourceAdapter = {
@@ -137,7 +123,7 @@ export const artificialAnalysisAdapter: SourceAdapter = {
   tier: "T2",
   homepageUrl: sourceUrl,
   termsUrl: "https://artificialanalysis.ai/terms-of-use",
-  adapterVersion: "2.2.0",
+  adapterVersion: "2.3.0",
   canCreateIdentity: true,
   async fetch(): Promise<AdapterResult> {
     const response = await fetch(sourceUrl, { headers: { "User-Agent": "AI-SCOREBOARD/2.0" }, next: { revalidate: 0 } });
@@ -162,6 +148,7 @@ export const artificialAnalysisAdapter: SourceAdapter = {
       }
       add("intelligence_index", "Artificial Analysis Intelligence Index", model.intelligenceIndex, "index", indexVersion);
       add("cost_per_task", "Cost per Intelligence Index task", model.intelligenceIndexCostPerTask, "USD / task", indexVersion);
+      add("task_time", "Time per Intelligence Index task", model.intelligenceIndexTimePerTask, "seconds / task", indexVersion);
       add("output_speed", "Median output speed", model.medianOutputTokensPerSecond, "tokens / second");
       add("latency", "Median time to first token", model.medianTimeToFirstTokenSeconds, "seconds");
       add("input_price", "Observed input price", model.price1mInputTokens, "USD / 1M tokens");

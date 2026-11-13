@@ -379,6 +379,14 @@ export const modelGuideFamilies = families;
 export const modelVersionGuides = versions;
 
 export function resolveModelGuide(model: Pick<Model, "slug" | "name" | "provider" | "version">): ResolvedModelGuide {
+  // Reuse only a reviewed, exact base model's prose. The observed setting,
+  // rank, costs and measurements remain attached to the distinct source ID.
+  const baseSlug = model.slug.replace(/-(?:none|low|medium|high|xhigh|max)$/, "");
+  const base = baseSlug !== model.slug ? versions[baseSlug] : undefined;
+  if (!versions[model.slug] && base && families[base.familyKey].provider === model.provider && model.name.replace(/\s*\([^)]*\)\s*$/, "").trim().toLowerCase() === base.officialName.replace(/\s*\([^)]*\)\s*$/, "").trim().toLowerCase()) {
+    const shared = resolveModelGuide({ ...model, slug: baseSlug });
+    return { ...shared, slug: model.slug, baseGuideSlug: baseSlug, configurationNote: `기반 모델 ${base.officialName}의 공식 소개와 API 요금 안내를 공유합니다. 이 페이지의 평가 ID는 ${model.version}이며, 평가 설정은 ${model.name}입니다. 점수·작업 비용·시간은 이 조합의 관측값만 사용합니다. 같은 설정을 공식 앱이나 API에서 선택할 수 있는지는 이용 문서에서 따로 확인하세요.` };
+  }
   const version = versions[model.slug];
   if (!version) {
     return {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { boardSlug, contextText, displayName, leaderboardUrl, metricText, metricHeading, safeReturn, toggleComparison } from "../src/lib/presentation";
+import { boardSlug, configurationLabel, contextText, displayName, leaderboardUrl, metricText, metricHeading, safeReturn, toggleComparison } from "../src/lib/presentation";
 import { axisDefinitions, missingMetrics, normalizedValue } from "../src/lib/scoring-method";
 import { resolveModelGuide } from "../src/lib/model-guides";
 import type { RankedEntry } from "../src/lib/types";
@@ -14,15 +14,18 @@ describe("audit regressions", () => {
     expect(boardSlug("bad")).toBe("overall");
     expect(leaderboardUrl("coding","Claude")).toBe("/?board=coding&q=Claude");
     expect(safeReturn("/?board=coding&q=Claude")).toBe("/?board=coding&q=Claude");
+    expect(leaderboardUrl("coding","Claude",true)).toBe("/?board=coding&q=Claude&all=1");
     for(const unsafe of ["//evil.example","https://evil.example","/models/abc","/\\evil.example"]) expect(safeReturn(unsafe)).toBe("/");
   });
   it("separates product names and evaluation settings and formats context consistently", () => {
     expect(displayName("Claude Fable 5.1 (Adaptive Reasoning, Max Effort, Default Fallback)")).toBe("Claude Fable 5.1");
     expect(contextText(1048576)).toBe("104.86만 토큰");
+    expect(configurationLabel("GPT-6 Astra (High)")).not.toBe(configurationLabel("GPT-6 Astra (Max)"));
   });
   it("shows raw evaluation cost, not a cost score or substituted token price", () => {
     const entry = { value:95, price:.4, speed:100 } as RankedEntry;
     expect(metricText(entry,"value")).toBe("$0.40");
+    expect(metricText(entry,"value","v2.2")).toBe("$0.40");
     expect(metricText({value:95} as RankedEntry,"value")).toBe("자료 없음");
     expect(metricText(entry,"value","v1")).toBe("$0.40"); // v1 price is the explicitly labeled blended API rate
     expect(metricHeading("value","v1")).toBe("API 요금 / 100만 토큰");

@@ -17,5 +17,14 @@ describe("latest model coverage", () => {
     const selected = selectCurrent(rows);
     expect(selected.some((model) => model.slug === "gpt-6-sol-max")).toBe(true);
     expect(selected.some((model) => model.slug === "gpt-6-luna")).toBe(true);
+    expect(selected).toHaveLength(20);
+  });
+
+  it("keeps each independently evaluated reasoning setting, with no family cap", () => {
+    const rows = ["max","xhigh","high","medium","low"].map((effort,index) => ({
+      slug: `same-model-${effort}`, deprecated: false, intelligenceIndex: 80-index,
+    }));
+    const selected=selectCurrent([...rows,{slug:"retired",deprecated:true,intelligenceIndex:99},{slug:"unmeasured",deprecated:false,intelligenceIndex:null}]);
+    expect(selected.map((entry)=>entry.slug)).toEqual(rows.map((entry)=>entry.slug));
   });
 });

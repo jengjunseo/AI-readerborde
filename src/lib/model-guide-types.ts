@@ -67,6 +67,7 @@ export type ModelVersionGuide = {
   modelType: string;
   summary: string;
   introduction?: string;
+  baseGuideSlug?: string;
   configurationNote?: string;
   capabilities: string[];
   access: AccessPath[];

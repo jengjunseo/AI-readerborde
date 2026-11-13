@@ -1,7 +1,9 @@
 const normalize = (raw: number, [floor, ceiling]: readonly [number, number]) => Math.min(100, Math.max(0, (raw - floor) / (ceiling - floor) * 100));
 
-// Shared by the v2.1 pipeline and its public explanation. Never rewrite old snapshots.
-export const methodVersion = "v2.1";
+// v2.2 keeps v2.1 weights but ranks all independently observed configurations.
+// Never rewrite old snapshots when the eligible population changes.
+export const methodVersion = "v2.2";
+export const isTaskCostMethod = (version: string) => version === "v2.1" || version === "v2.2";
 export const metricAnchors: Record<string, readonly [number, number]> = {
   gpqa: [0, 100], hle: [0, 100], terminal_bench: [0, 100], scicode: [0, 100], swe_bench: [0, 100],
   gdpval: [0, 100], analyst_agent: [0, 100], apex_agents: [0, 100], itbench_sre: [0, 100],

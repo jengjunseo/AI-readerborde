@@ -27,4 +27,14 @@ describe("readable model introductions", () => {
     expect(guide.introduction).toContain("보장하는 것은 아닙니다");
     expect(guide.introduction).not.toBe(guide.summary);
   });
+
+  it("shares a verified base introduction without changing the evaluation identity or claiming API setting availability", () => {
+    const guide=resolveModelGuide({slug:"gpt-6-astra-high",name:"GPT-6 Astra (High)",provider:"OpenAI",version:"gpt-6-astra-high"});
+    expect(guide.baseGuideSlug).toBe("gpt-6-astra");
+    expect(guide.slug).toBe("gpt-6-astra-high");
+    expect(guide.status).toBe("published");
+    expect(guide.configurationNote).toContain("GPT-6 Astra (High)");
+    expect(guide.configurationNote).toContain("따로 확인");
+    expect(resolveModelGuide({slug:"gpt-6-astra-high",name:"Different model (High)",provider:"OpenAI",version:"high"}).status).toBe("pending");
+  });
 });

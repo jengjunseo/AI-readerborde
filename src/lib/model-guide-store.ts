@@ -1,7 +1,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 import type { AppDb } from "@/db/client";
 import { modelGuideFamilies as guideFamilyTable, modelVersionGuides as guideVersionTable, models, modelVersions, providers } from "@/db/schema";
-import { modelGuideFamilies, modelVersionGuides, resolveModelGuide } from "./model-guides";
+import { modelGuideFamilies, resolveModelGuide } from "./model-guides";
 import type { ResolvedModelGuide } from "./model-guide-types";
 import type { Model } from "./types";
 
@@ -18,14 +18,17 @@ export async function syncPublishedModelGuides(db: AppDb) {
     .where(and(eq(modelVersions.isCurrent, true), eq(models.lifecycle, "published")));
 
   let synced = 0;
+  const syncedFamilies = new Set<string>();
   for (const identity of identities) {
-    const version = modelVersionGuides[identity.slug];
-    if (!version) continue;
-    const family = modelGuideFamilies[version.familyKey];
     const guide = resolveModelGuide({ slug: identity.slug, name: identity.name, provider: identity.provider, version: identity.version });
+    if (guide.status !== "published") continue;
+    const family = modelGuideFamilies[guide.familyKey];
     const now = new Date();
-    await db.insert(guideFamilyTable).values({ familyKey: family.key, officialName: family.officialName, providerName: family.provider, content: family, sources: family.sources, status: "published", lastVerifiedAt: version.lastVerifiedAt, updatedAt: now }).onConflictDoUpdate({ target: guideFamilyTable.familyKey, set: { officialName: family.officialName, providerName: family.provider, content: family, sources: family.sources, status: "published", lastVerifiedAt: version.lastVerifiedAt, updatedAt: now } });
-    await db.insert(guideVersionTable).values({ modelVersionId: identity.modelVersionId, familyKey: family.key, content: guide, sources: guide.sources, status: version.status, lastVerifiedAt: version.lastVerifiedAt, publishedAt: version.status === "published" ? now : null, updatedAt: now }).onConflictDoUpdate({ target: guideVersionTable.modelVersionId, set: { familyKey: family.key, content: guide, sources: guide.sources, status: version.status, lastVerifiedAt: version.lastVerifiedAt, publishedAt: version.status === "published" ? now : null, updatedAt: now } });
+    if (!syncedFamilies.has(family.key)) {
+      await db.insert(guideFamilyTable).values({ familyKey: family.key, officialName: family.officialName, providerName: family.provider, content: family, sources: family.sources, status: "published", lastVerifiedAt: guide.lastVerifiedAt, updatedAt: now }).onConflictDoUpdate({ target: guideFamilyTable.familyKey, set: { officialName: family.officialName, providerName: family.provider, content: family, sources: family.sources, status: "published", lastVerifiedAt: guide.lastVerifiedAt, updatedAt: now } });
+      syncedFamilies.add(family.key);
+    }
+    await db.insert(guideVersionTable).values({ modelVersionId: identity.modelVersionId, familyKey: family.key, content: guide, sources: guide.sources, status: guide.status, lastVerifiedAt: guide.lastVerifiedAt, publishedAt: now, updatedAt: now }).onConflictDoUpdate({ target: guideVersionTable.modelVersionId, set: { familyKey: family.key, content: guide, sources: guide.sources, status: guide.status, lastVerifiedAt: guide.lastVerifiedAt, publishedAt: now, updatedAt: now } });
     synced += 1;
   }
   return synced;

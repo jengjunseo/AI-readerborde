@@ -91,11 +91,15 @@ describe("beginner model encyclopedia", () => {
       const identity = (await db.insert(schema.models).values({ providerId: provider.id, slug, name: slug, lifecycle: "published", adminApproved: true }).returning())[0];
       await db.insert(schema.modelVersions).values({ modelId: identity.id, version: slug, contextLength: "1050000", isCurrent: true });
     }
-    expect(await syncPublishedModelGuides(db)).toBe(4);
-    expect(await syncPublishedModelGuides(db)).toBe(4);
+    const openai=(await db.insert(schema.providers).values({slug:"openai",name:"OpenAI"}).returning())[0];
+    const variant=(await db.insert(schema.models).values({providerId:openai.id,slug:"gpt-6-astra-high",name:"GPT-6 Astra (High)",lifecycle:"published"}).returning())[0];
+    await db.insert(schema.modelVersions).values({modelId:variant.id,version:"gpt-6-astra-high",contextLength:"1000000",isCurrent:true});
+    expect(await syncPublishedModelGuides(db)).toBe(5);
+    expect(await syncPublishedModelGuides(db)).toBe(5);
     expect(await db.select().from(schema.modelGuideFamilies)).toHaveLength(3);
     const rows = await db.select().from(schema.modelVersionGuides);
-    expect(rows).toHaveLength(4);
+    expect(rows).toHaveLength(5);
+    expect((rows.find((row)=>(row.content as {slug?:string}).slug==="gpt-6-astra-high")?.content as {baseGuideSlug?:string}).baseGuideSlug).toBe("gpt-6-astra");
     expect((rows.find((row) => (row.content as { slug?: string }).slug === "gpt-6-luna")?.content as { introduction: string }).introduction).toContain("실무 보조자");
     expect(rows.every((row) => row.status === "published")).toBe(true);
     for (const slug of ["gpt-6-1-sol", "claude-sonnet-5-5"]) {

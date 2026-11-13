@@ -37,6 +37,30 @@ const fixtureAdapter: SourceAdapter = {
 };
 
 describe("durable daily pipeline", () => {
+  it("persists and ranks the same base model's configurations independently", async () => {
+    const { client, db } = await testDb();
+    const fixture=await fixtureAdapter.fetch();
+    const base=fixture.records.find((record)=>record.kind==="model_meta")!;
+    if(base.kind!=="model_meta") throw new Error("Missing fixture identity");
+    const variant={...base,externalId:`${base.externalId}-high`,modelSlug:`${base.modelSlug}-high`,version:`${base.version}-high`,name:`${base.name} (high)`};
+    const adapter: SourceAdapter={...fixtureAdapter, async fetch() {
+      return {...fixture, records:[...fixture.records,variant,...fixture.records.filter((record)=>record.kind==="metric"&&record.externalId===base.externalId).map((record)=>({...record,externalId:variant.externalId})),
+        {kind:"metric",externalId:base.externalId,metricKey:"task_time",benchmarkName:"Fixture task time",value:120,unit:"seconds / task",sourceUrl:"https://example.com/time",observedAt:"2026-11-14"},
+        {kind:"metric",externalId:variant.externalId,metricKey:"task_time",benchmarkName:"Fixture task time",value:60,unit:"seconds / task",sourceUrl:"https://example.com/time",observedAt:"2026-11-14"}]};
+    }};
+    try {
+      expect((await runDailyPipeline(db,[adapter],"2026-11-14")).status).toBe("published");
+      const snapshot=await loadPublicSnapshotFromDb(db);
+      const entries=snapshot!.boards.overall.entries;
+      expect(entries).toHaveLength(11);
+      expect(entries.find((entry)=>entry.model.slug===base.modelSlug)?.taskTime).toBe(120);
+      expect(entries.find((entry)=>entry.model.slug===variant.modelSlug)?.taskTime).toBe(60);
+      const aliases=await db.select().from(schema.modelAliases);
+      expect(aliases.find((row)=>row.externalId===base.externalId)?.modelVersionId).not.toBe(aliases.find((row)=>row.externalId===variant.externalId)?.modelVersionId);
+      expect((await runDailyPipeline(db,[adapter],"2026-11-14")).status).toBe("already_published");
+    } finally { await client.close(); }
+  });
+
   it("publishes nested source data through all layers without converting Elo to percent", async () => {
     const { client, db } = await testDb();
     const payload = JSON.stringify({ initialModels: Array.from({ length: 10 }, (_, i) => ({
@@ -127,7 +151,7 @@ describe("durable daily pipeline", () => {
     expect(upgraded.status).toBe("published");
     expect(upgraded.runId).not.toBe(legacyRunId);
     const runs = await db.select().from(schema.pipelineRuns);
-    expect(runs.map((run) => run.runDate)).toContain("2026-09-17@v2.1");
+    expect(runs.map((run) => run.runDate)).toContain("2026-09-17@v2.2");
     const legacy = (await db.select().from(schema.rankingSnapshots)).find((snapshot) => snapshot.id === legacySnapshotId);
     expect(legacy?.status).toBe("superseded");
     expect(await db.select().from(schema.rankingSnapshots)).toHaveLength(7);

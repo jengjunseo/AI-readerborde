@@ -102,6 +102,7 @@ export async function runDailyPipeline(db: Db, adapters: SourceAdapter[], date: 
     }
     if (!records.some((item) => item.adapter.canCreateIdentity)) throw new Error("No trusted evaluation source succeeded");
     const identity = new Map<string, string>();
+    const evaluationKeys = new Map<string, string>();
     for (const item of records.filter((item) => item.record.kind === "model_meta")) {
       const record = item.record as Extract<ExternalRecord, { kind: "model_meta" }>;
       let alias = await aliasFor(db, item.adapter.id, record.externalId);
@@ -118,25 +119,29 @@ export async function runDailyPipeline(db: Db, adapters: SourceAdapter[], date: 
         continue;
       }
       identity.set(`${item.adapter.id}:${record.externalId}`, alias.modelVersionId);
+      if (item.adapter.canCreateIdentity) evaluationKeys.set(alias.modelVersionId, record.externalId);
     }
+    const pendingRaw: Array<typeof schema.rawObservations.$inferInsert> = [];
     for (const item of records.filter((item) => item.record.kind === "metric")) {
       const record = item.record as Extract<ExternalRecord, { kind: "metric" }>;
       const modelVersionId = identity.get(`${item.adapter.id}:${record.externalId}`) ?? (await aliasFor(db, item.adapter.id, record.externalId))?.modelVersionId;
       if (!modelVersionId) continue;
-      await db.insert(schema.rawObservations).values({ pipelineRunId: runId, modelVersionId, metricKey: record.metricKey, benchmarkName: record.benchmarkName, benchmarkVersion: record.benchmarkVersion, externalModelId: record.externalId, value: String(record.value), unit: record.unit, sourceUrl: record.sourceUrl, observedAt: record.observedAt, adapterVersion: item.adapter.adapterVersion, rawPayloadHash: item.payloadHash, licenseTermsNote: record.licenseTermsNote, sourceFetchId: item.fetchId });
+      pendingRaw.push({ pipelineRunId: runId, modelVersionId, metricKey: record.metricKey, benchmarkName: record.benchmarkName, benchmarkVersion: record.benchmarkVersion, externalModelId: record.externalId, value: String(record.value), unit: record.unit, sourceUrl: record.sourceUrl, observedAt: record.observedAt, adapterVersion: item.adapter.adapterVersion, rawPayloadHash: item.payloadHash, licenseTermsNote: record.licenseTermsNote, sourceFetchId: item.fetchId });
     }
+    for (let start=0; start<pendingRaw.length; start+=250) await db.insert(schema.rawObservations).values(pendingRaw.slice(start,start+250));
     const raw = await db.select().from(schema.rawObservations).where(eq(schema.rawObservations.pipelineRunId, runId));
     const byModel = new Map<string, Map<string, RawObservation>>();
     for (const observation of raw) { const values = byModel.get(observation.modelVersionId) ?? new Map<string, RawObservation>(); values.set(observation.metricKey, observation); byModel.set(observation.modelVersionId, values); }
     const derived: Array<{ modelVersionId: string; board: BoardSlug; value: number; coverage: number; breakdown: Record<string, unknown> }> = [];
     const modelCoverages: number[] = [];
+    const pendingNormalized: Array<typeof schema.normalizedMetricValues.$inferInsert> = [];
     for (const [modelVersionId, values] of byModel) {
       const normalized: Record<string, number> = {};
       for (const [key, observation] of values) {
         const value = normalizedValue(key, Number(observation.value));
         if (value === undefined) continue;
         normalized[key] = value;
-        await db.insert(schema.normalizedMetricValues).values({ pipelineRunId: runId, modelVersionId, metricKey: key, normalizedValue: String(value), methodVersion, rawObservationId: observation.id });
+        pendingNormalized.push({ pipelineRunId: runId, modelVersionId, metricKey: key, normalizedValue: String(value), methodVersion, rawObservationId: observation.id });
       }
       const axes: Record<string, { score: number; weight: number; keys: string[] }> = {};
       for (const [axis, definition] of Object.entries(axisDefinitions)) {
@@ -161,7 +166,8 @@ export async function runDailyPipeline(db: Db, adapters: SourceAdapter[], date: 
       };
       pushAxis("coding", "coding"); pushAxis("agentic", "agentic"); pushAxis("value", "value"); pushAxis("speed", "speed"); pushAxis("korean", "korean");
     }
-    for (const score of derived) await db.insert(schema.boardScores).values({ pipelineRunId: runId, modelVersionId: score.modelVersionId, boardSlug: score.board, score: String(score.value), coverage: String(score.coverage), methodVersion, breakdown: score.breakdown });
+    for (let start=0; start<pendingNormalized.length; start+=250) await db.insert(schema.normalizedMetricValues).values(pendingNormalized.slice(start,start+250));
+    for (let start=0; start<derived.length; start+=250) await db.insert(schema.boardScores).values(derived.slice(start,start+250).map((score) => ({ pipelineRunId: runId, modelVersionId: score.modelVersionId, boardSlug: score.board, score: String(score.value), coverage: String(score.coverage), methodVersion, breakdown: score.breakdown })));
     const inputHash = createHash("sha256").update(JSON.stringify(raw.map((row) => [row.modelVersionId, row.metricKey, row.value, row.rawPayloadHash]).sort())).digest("hex").slice(0, 16);
     const discoveredModels = new Set(records.filter((item) => item.record.kind === "model_meta").map((item) => `${item.adapter.id}:${(item.record as Extract<ExternalRecord, { kind: "model_meta" }>).externalId}`)).size;
     const publishedVersionIds = [...new Set(derived.filter((score) => score.board === "overall").map((score) => score.modelVersionId))];
@@ -175,7 +181,7 @@ export async function runDailyPipeline(db: Db, adapters: SourceAdapter[], date: 
     await db.transaction(async (tx: Db) => {
       const previousPointers = await tx.select().from(schema.publishedPointers);
       for (const board of boardDefinitions) {
-        const scores = derived.filter((score) => score.board === board).sort((left, right) => right.value - left.value);
+        const scores = derived.filter((score) => score.board === board).sort((left, right) => right.value - left.value || (evaluationKeys.get(left.modelVersionId) ?? left.modelVersionId).localeCompare(evaluationKeys.get(right.modelVersionId) ?? right.modelVersionId));
         if (board !== "korean" && scores.length < 3) throw new Error(`${board} did not meet the minimum three ranked models`);
         const snapshot = (await tx.insert(schema.rankingSnapshots).values({ pipelineRunId: runId, boardSlug: board, snapshotDate: date, methodVersion, inputHash, status: "staged" }).returning())[0];
         snapshotIds[board] = snapshot.id;

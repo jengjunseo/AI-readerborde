@@ -14,5 +14,5 @@ export default async function ComparePage() {
     const guide=published[m.slug] ?? resolveModelGuide(m);
     return [m.slug,{ status:guide.status, lastVerifiedAt:guide.lastVerifiedAt, access:guide.access }];
   }));
-  return <main className="shell subpage compare-page"><SiteHeader date={data.snapshot.date} />{data.health.stale && <DataStatus data={data} />}<h1 className="page-title">두 모델 비교</h1><Suspense fallback={<p>비교 불러오는 중…</p>}><ModelComparison snapshot={data.snapshot} models={models} guides={guides} /></Suspense></main>;
+  return <main className="shell subpage compare-page"><SiteHeader date={data.snapshot.date} />{data.health.stale && <DataStatus data={data} />}<h1 className="page-title">두 조합 비교</h1><Suspense fallback={<p>비교 불러오는 중…</p>}><ModelComparison snapshot={data.snapshot} models={models} guides={guides} /></Suspense></main>;
 }
