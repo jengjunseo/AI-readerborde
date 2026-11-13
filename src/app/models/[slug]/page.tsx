@@ -58,7 +58,7 @@ function Access({ guide }: { guide: ResolvedModelGuide }) {
   return <div className="detail-access">{guide.access.map((path) => <article key={path.label}>
     <h3><GuideSourceTitle label={path.label} href={path.url} /></h3><p className="detail-meta">{path.platform} · {path.technicalLevel} · {path.freeAccess === "no" ? "유료 이용" : path.freeAccess === "limited" ? "무료 한도 있음" : path.freeAccess === "yes" ? path.kind === "local" ? "무료 다운로드 · 실행 비용 별도" : "무료 이용 가능" : "무료 여부 확인 필요"}</p>
     <p><GlossaryText text={path.requirements} /></p>
-    {pricesFor(guide, path).length ? pricesFor(guide, path).map((p) => <div className="access-price" key={p.label}><b><GuideSourceTitle label={p.price} sourceIds={p.sourceIds} sources={guide.sources} /></b><p><GlossaryText text={`${p.unit}${p.note ? ` · ${p.note}` : ""}`} /></p><small>가격 확인 {p.observedAt}</small></div>) : <p className="detail-meta">공식 가격·이용 한도는 아래 이용 페이지에서 확인하세요.</p>}
+    {pricesFor(guide, path).length ? pricesFor(guide, path).map((p) => <div className="access-price" key={p.label}><b><GuideSourceTitle label={p.price} sourceIds={p.sourceIds} sources={guide.sources} /></b><p><GlossaryText text={`${p.unit}${p.note ? ` · ${p.note}` : ""}`} /></p><small>가격 확인 {p.observedAt}</small></div>) : <p className="detail-meta">요금제별 가격과 이용 한도는 공식 서비스에서 확인하세요.</p>}
     <ol>{path.steps.map((step) => <li key={step}><GlossaryText text={step} /></li>)}</ol>
 
   </article>)}</div>;
