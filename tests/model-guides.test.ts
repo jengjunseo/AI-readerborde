@@ -87,15 +87,16 @@ describe("beginner model encyclopedia", () => {
     await migrate(pgliteDb, { migrationsFolder: "drizzle" });
     const db = pgliteDb as unknown as NeonDatabase<typeof schema>;
     const provider = (await db.insert(schema.providers).values({ slug: "fixture", name: "Fixture Provider" }).returning())[0];
-    for (const slug of ["gpt-6-astra", "gpt-6-1-sol", "claude-sonnet-5-5"]) {
+    for (const slug of ["gpt-6-astra", "gpt-6-1-sol", "claude-sonnet-5-5", "gpt-6-luna"]) {
       const identity = (await db.insert(schema.models).values({ providerId: provider.id, slug, name: slug, lifecycle: "published", adminApproved: true }).returning())[0];
       await db.insert(schema.modelVersions).values({ modelId: identity.id, version: slug, contextLength: "1050000", isCurrent: true });
     }
-    expect(await syncPublishedModelGuides(db)).toBe(3);
-    expect(await syncPublishedModelGuides(db)).toBe(3);
+    expect(await syncPublishedModelGuides(db)).toBe(4);
+    expect(await syncPublishedModelGuides(db)).toBe(4);
     expect(await db.select().from(schema.modelGuideFamilies)).toHaveLength(3);
     const rows = await db.select().from(schema.modelVersionGuides);
-    expect(rows).toHaveLength(3);
+    expect(rows).toHaveLength(4);
+    expect((rows.find((row) => (row.content as { slug?: string }).slug === "gpt-6-luna")?.content as { introduction: string }).introduction).toContain("실무 보조자");
     expect(rows.every((row) => row.status === "published")).toBe(true);
     for (const slug of ["gpt-6-1-sol", "claude-sonnet-5-5"]) {
       const row = rows.find((item) => (item.content as { slug?: string }).slug === slug);

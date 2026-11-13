@@ -28,7 +28,25 @@ const modelSchema = z.object({
   mmmuPro: maybeNumber,
   price1mInputTokens: maybeNumber,
   price1mOutputTokens: maybeNumber,
-});
+  scores: z.record(z.string(), maybeNumber).optional(),
+  outputSpeed: maybeNumber,
+  timeToFirstToken: maybeNumber,
+}).transform((row) => ({
+  ...row,
+  gpqa: row.gpqa ?? row.scores?.["gpqa-diamond"],
+  hle: row.hle ?? row.scores?.["humanitys-last-exam"],
+  terminalBench40: row.terminalBench40 ?? row.scores?.["terminalbench-4-0"],
+  scicode: row.scicode ?? row.scores?.scicode,
+  analystAgent: row.analystAgent ?? row.scores?.["aa-analyst-agent"],
+  apexAgents: row.apexAgents ?? row.scores?.["apex-agents-aa"],
+  itbenchSre: row.itbenchSre ?? row.scores?.["itbench-aa"],
+  lcr: row.lcr ?? row.scores?.["artificial-analysis-long-context-reasoning"],
+  mmmuPro: row.mmmuPro ?? row.scores?.["mmmu-pro"],
+  medianOutputTokensPerSecond: row.medianOutputTokensPerSecond ?? row.outputSpeed,
+  medianTimeToFirstTokenSeconds: row.medianTimeToFirstTokenSeconds ?? row.timeToFirstToken,
+  // Nested GDPval and AA-Briefcase are now Elo, not success proportions.
+  // Do not reinterpret either as the legacy normalized percentage.
+}));
 
 type AAModel = z.infer<typeof modelSchema>;
 const sourceUrl = "https://artificialanalysis.ai/leaderboards/models";
@@ -45,7 +63,7 @@ const percentMetrics: Array<[keyof AAModel, string, string, string]> = [
   ["mmmuPro", "multimodal", "MMMU-Pro", "1"],
 ];
 
-export function parseModels(html: string): AAModel[] {
+function decodeFlight(html: string): string {
   // Decode data, never execute the source's scripts. Flight can split a model
   // object (or even a property name) across independently encoded chunks.
   const chunks: string[] = [];
@@ -55,7 +73,15 @@ export function parseModels(html: string): AAModel[] {
     const chunk: unknown = JSON.parse(call[1]);
     if (Array.isArray(chunk) && chunk[0] === 1 && typeof chunk[1] === "string") chunks.push(chunk[1]);
   }
-  const decoded = chunks.join("");
+  return chunks.join("");
+}
+
+export function parseIndexVersion(html: string): string | undefined {
+  return decodeFlight(html).match(/"intelligenceIndex"\s*:\s*\{\s*"slug"\s*:\s*"artificial-analysis-intelligence-index"\s*,\s*"name"\s*:\s*"Artificial Analysis Intelligence Index v([0-9.]+)"/)?.[1];
+}
+
+export function parseModels(html: string): AAModel[] {
+  const decoded = decodeFlight(html);
   for (const field of decoded.matchAll(/"(?:initialModels|models)"\s*:\s*\[/g)) {
     const start = field.index + field[0].length - 1;
     let depth = 0;
@@ -86,7 +112,7 @@ function familySlug(slug: string) {
   return slug.replace(/-(max|xhigh|high|medium|low)(?:-.*)?$/, "");
 }
 
-export function selectCurrent(models: AAModel[]) {
+export function selectCurrent<T extends Pick<AAModel, "slug" | "deprecated" | "intelligenceIndex">>(models: T[]) {
   const seen = new Set<string>();
   const eligible = models
     .filter((model) => !model.deprecated && model.intelligenceIndex != null)
@@ -111,13 +137,14 @@ export const artificialAnalysisAdapter: SourceAdapter = {
   tier: "T2",
   homepageUrl: sourceUrl,
   termsUrl: "https://artificialanalysis.ai/terms-of-use",
-  adapterVersion: "2.1.0",
+  adapterVersion: "2.2.0",
   canCreateIdentity: true,
   async fetch(): Promise<AdapterResult> {
     const response = await fetch(sourceUrl, { headers: { "User-Agent": "AI-SCOREBOARD/2.0" }, next: { revalidate: 0 } });
     if (!response.ok) throw new Error(`Artificial Analysis returned ${response.status}`);
     const html = await response.text();
     const selected = selectCurrent(parseModels(html));
+    const indexVersion = parseIndexVersion(html) ?? (selected.every((model) => !model.scores) ? "4.3.2" : undefined);
     if (selected.length < 10) throw new Error("Artificial Analysis returned fewer than 10 eligible models");
     const observedAt = new Date().toISOString().slice(0, 10);
     const records: ExternalRecord[] = [];
@@ -129,16 +156,18 @@ export const artificialAnalysisAdapter: SourceAdapter = {
       };
       for (const [field, key, label, version] of percentMetrics) {
         const value = model[field] as number | null | undefined;
-        add(key, label, typeof value === "number" ? value * 100 : value, "%", version);
+        if (typeof value === "number" && (value < 0 || value > 1)) throw new Error(`Unexpected non-proportion for ${model.slug}/${key}`);
+        const benchmarkVersion = model.scores && version === "v4.3.2" ? undefined : version;
+        add(key, label, typeof value === "number" ? value * 100 : value, "%", benchmarkVersion);
       }
-      add("intelligence_index", "Artificial Analysis Intelligence Index", model.intelligenceIndex, "index", "4.3.2");
-      add("cost_per_task", "Cost per Intelligence Index task", model.intelligenceIndexCostPerTask, "USD / task", "4.3.2");
+      add("intelligence_index", "Artificial Analysis Intelligence Index", model.intelligenceIndex, "index", indexVersion);
+      add("cost_per_task", "Cost per Intelligence Index task", model.intelligenceIndexCostPerTask, "USD / task", indexVersion);
       add("output_speed", "Median output speed", model.medianOutputTokensPerSecond, "tokens / second");
       add("latency", "Median time to first token", model.medianTimeToFirstTokenSeconds, "seconds");
       add("input_price", "Observed input price", model.price1mInputTokens, "USD / 1M tokens");
       add("output_price", "Observed output price", model.price1mOutputTokens, "USD / 1M tokens");
     }
     const fingerprint = createHash("sha256").update(JSON.stringify(selected)).digest("hex");
-    return { records, fingerprint, payload: { observedAt, modelCount: selected.length, models: selected } };
+    return { records, fingerprint, payload: { observedAt, modelCount: selected.length, indexVersion, models: selected } };
   },
 };

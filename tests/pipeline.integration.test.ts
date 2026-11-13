@@ -2,9 +2,10 @@ import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import * as schema from "../src/db/schema";
 import { curatedAdapter } from "../src/ingest/adapters/curated";
+import { artificialAnalysisAdapter } from "../src/ingest/adapters/artificial-analysis";
 import type { SourceAdapter } from "../src/ingest/adapters/types";
 import { rollbackBoard, runDailyPipeline } from "../src/ingest/pipeline/runner";
 import { loadPublicSnapshotFromDb, publishedRunFromDb } from "../src/lib/public-data";
@@ -36,6 +37,28 @@ const fixtureAdapter: SourceAdapter = {
 };
 
 describe("durable daily pipeline", () => {
+  it("publishes nested source data through all layers without converting Elo to percent", async () => {
+    const { client, db } = await testDb();
+    const payload = JSON.stringify({ initialModels: Array.from({ length: 10 }, (_, i) => ({
+      slug: `nested-${i}`, name: `Nested ${i}`, modelCreatorName: "Fixture", intelligenceIndex: 60-i,
+      scores: { "gpqa-diamond": .9, "humanitys-last-exam": .7, "terminalbench-4-0": .6, scicode: .5, "aa-analyst-agent": .5, "artificial-analysis-long-context-reasoning": .8, "gdpval-aa-normalized": 1800 },
+      outputSpeed: 97, timeToFirstToken: 2, intelligenceIndexCostPerTask: .4,
+    })) });
+    // Synthetic response exercises the real adapter and real PostgreSQL runtime.
+    const html = `<script>self.__next_f.push(${JSON.stringify([1, payload])})</script>`;
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(html)));
+    try {
+      const first = await runDailyPipeline(db, [artificialAnalysisAdapter], "2026-11-14");
+      expect(first.status).toBe("published");
+      const snapshot = await loadPublicSnapshotFromDb(db);
+      expect(snapshot?.boards.overall.entries).toHaveLength(10);
+      expect(snapshot?.boards.overall.entries[0].value).toBeCloseTo((80*.25 + 55*.25 + 50*.15 + 80*.1 + 95*.1 + (77/380*100)*.05)/.9);
+      expect((await db.select().from(schema.rawObservations)).some((row) => row.metricKey === "gdpval")).toBe(false);
+      expect((await runDailyPipeline(db, [artificialAnalysisAdapter], "2026-11-14")).status).toBe("already_published");
+      expect(await db.select().from(schema.rankingSnapshots)).toHaveLength(6);
+    } finally { vi.unstubAllGlobals(); await client.close(); }
+  });
+
   it("persists all four data layers and is idempotent", async () => {
     const { client, db } = await testDb();
     const first = await runDailyPipeline(db, [fixtureAdapter], "2026-09-17");
